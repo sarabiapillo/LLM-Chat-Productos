@@ -9,31 +9,24 @@
 \providecommand\HyField@AuxAddToFields[1]{}
 \providecommand\HyField@AuxAddToCoFields[2]{}
 \babel@aux{spanish}{}
-\@writefile{toc}{\contentsline {section}{\numberline {1}Introducción}{3}{section.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2}1. Requerimientos Funcionales}{3}{section.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}1.1 Gestión de Usuarios}{3}{subsection.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.1}Registro de Usuarios}{3}{subsubsection.2.1.1}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {1}Fragmento de Registro en AuthController.php}{3}{lstlisting.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.2}Inicio de Sesión y Recuperación}{4}{subsubsection.2.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}1.2 Gestión de Roles y Permisos}{4}{subsection.2.2}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {2}app/Models/User.php}{4}{lstlisting.2}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {3}Creacion de Roles Dinámicos}{4}{lstlisting.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}1.3 Control de Acceso y Dashboard de Administración}{5}{subsection.2.3}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {4}Restricción en AdminController.php}{5}{lstlisting.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3}2. Arquitectura Web y Consumo de Servicios}{5}{section.3}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {5}Definición de Rutas REST en routes/api.php}{5}{lstlisting.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}3. Requerimientos de Seguridad Computacional}{6}{section.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}3.1 Cifrado de Contraseñas}{6}{subsection.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}3.2 Comunicación Cifrada (HTTPS/TLS)}{6}{subsection.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}3.3 Gestión Segura de Tokens JWT}{6}{subsection.4.3}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {6}Expiración del JWT en AuthController.php}{6}{lstlisting.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}3.4 Autorización Verificada en el Servidor}{7}{subsection.4.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}3.5 Validación y Sanitización de Entradas (XSS y SQLi)}{7}{subsection.4.5}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {7}Validación Estricta en AdminController.php}{7}{lstlisting.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}3.6 Protección contra Ataques de Fuerza Bruta}{7}{subsection.4.6}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {8}Rate Limiting en routes/api.php}{7}{lstlisting.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.7}3.7 Registro de Auditoría con Trazabilidad}{8}{subsection.4.7}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {9}app/Models/AuditLog.php}{8}{lstlisting.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.8}3.8 Manejo Seguro de CORS y Fuga de Información}{8}{subsection.4.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Conclusión}{8}{section.5}\protected@file@percent }
-\gdef \@abspage@last{8}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Objetivo del Caso Práctico}{3}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Requerimientos Funcionales}{3}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}1. Gestión de Usuarios}{3}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}2. Gestión de Roles}{3}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}3. Gestión de Permisos}{3}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}4. Control de Acceso y Auditoría}{3}{subsection.2.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.5}5. Dashboard de Administración}{4}{subsection.2.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.6}6. Arquitectura Web y Consumo de Servicios}{4}{subsection.2.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Requerimientos Técnicos}{4}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Requerimientos de Seguridad Computacional}{4}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}1. Cifrado de contraseñas}{4}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}2. Comunicación Cifrada (HTTPS/TLS)}{5}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}3. Gestión segura de tokens JWT}{5}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}4. Autorización verificada en el servidor}{5}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}5. Validación y Sanitización de Entradas}{5}{subsection.4.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}6. Protección contra ataques de fuerza bruta}{5}{subsection.4.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.7}7. Registro de auditoría con trazabilidad}{5}{subsection.4.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.8}8. Manejo seguro de CORS}{5}{subsection.4.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.9}9. Principio de Mínimo Privilegio}{5}{subsection.4.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.10}10. Manejo de errores sin fuga de información}{6}{subsection.4.10}\protected@file@percent }
+\gdef \@abspage@last{6}
