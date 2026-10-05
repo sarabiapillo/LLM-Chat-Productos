@@ -3,12 +3,11 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AdminController;
 
 // Rutas públicas de autenticación para la app móvil (solo clientes)
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // Limit to 5 requests per minute against brute force
-Route::post('/register', function () {
-    return response()->json(['message' => 'Endpoint de registro (Pendiente)']);
-});
+Route::post('/register', [AuthController::class, 'register']);
 
 // Rutas protegidas (Requieren JWT de Passport)
 Route::middleware('auth:api')->group(function () {
@@ -35,6 +34,12 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/chat/send', function () {
         return response()->json(['message' => 'Enviar mensaje a LLM (Pendiente)']);
     });
+
+    // Rutas de Administración (Protegidas por middleware de rol en AdminController)
+    Route::get('/admin/users', [AdminController::class, 'listUsers']);
+    Route::post('/admin/users/{userId}/role', [AdminController::class, 'assignRole']);
+    Route::post('/admin/roles', [AdminController::class, 'createRole']);
+    Route::get('/admin/audit-logs', [AdminController::class, 'auditLogs']);
     
     // Cierre de sesión móvil
     Route::post('/logout', [AuthController::class, 'logout']);

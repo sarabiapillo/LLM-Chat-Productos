@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - JWT Frontend</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f3f4f6; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1, h2 { color: #1f2937; }
+        .form-group { margin-bottom: 15px; }
+        input { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; }
+        button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #2563eb; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; }
+        .hidden { display: none; }
+        #alert { margin-top: 15px; padding: 10px; border-radius: 4px; display: none; }
+        .alert-error { background: #fee2e2; color: #991b1b; }
+        .alert-success { background: #d1fae5; color: #065f46; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sistema de Gestión API REST</h1>
+        <div id="alert"></div>
+
+        <!-- Vista de Login -->
+        <div id="login-view">
+            <h2>Iniciar Sesión</h2>
+            <p>Ingresa como administrador para ver el CRUD de usuarios.</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="email" value="admin@admin.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <input type="password" id="password" value="password123" required>
+                </div>
+                <button type="submit">Autenticar con JWT</button>
+            </form>
+        </div>
+
+        <!-- Vista del Dashboard (CRUD de Usuarios) -->
+        <div id="dashboard-view" class="hidden">
+            <h2>Dashboard de Administrador</h2>
+            <p><strong>Autenticado como:</strong> <span id="user-role"></span></p>
+            <button id="logout-btn" style="background: #ef4444; margin-bottom: 15px;">Cerrar Sesión</button>
+            
+            <h3>Lista de Usuarios Registrados</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Rol Asignado</th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody">
+                    <!-- Los usuarios se cargaran aqui via AJAX -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/v1';
+        let jwtToken = localStorage.getItem('jwt_token') || null;
+
+        const loginView = document.getElementById('login-view');
+        const dashboardView = document.getElementById('dashboard-view');
+        const loginForm = document.getElementById('login-form');
+        const logoutBtn = document.getElementById('logout-btn');
+        const alertBox = document.getElementById('alert');
+
+        function showAlert(msg, isError = false) {
+            alertBox.textContent = msg;
+            alertBox.className = isError ? 'alert-error' : 'alert-success';
+            alertBox.style.display = 'block';
+            setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
+        }
+
+        function toggleViews() {
+            if (jwtToken) {
+                loginView.classList.add('hidden');
+                dashboardView.classList.remove('hidden');
+                fetchUsers();
+            } else {
+                loginView.classList.remove('hidden');
+                dashboardView.classList.add('hidden');
+            }
+        }
+
+        // Handle Login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    jwtToken = data.access_token;
+                    localStorage.setItem('jwt_token', jwtToken);
+                    document.getElementById('user-role').textContent = data.role || 'Admin';
+                    showAlert('Sesión iniciada exitosamente con JWT');
+                    toggleViews();
+                } else {
+                    showAlert(data.message || 'Error al autenticar', true);
+                }
+            } catch (error) {
+                showAlert('Error de conexión con la API', true);
+            }
+        });
+
+        // Handle Logout
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await fetch(`${API_URL}/logout`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${jwtToken}`
+                    }
+                });
+            } catch (error) {} // Ignore network errors on logout
+            
+            jwtToken = null;
+            localStorage.removeItem('jwt_token');
+            showAlert('Sesión cerrada');
+            toggleViews();
+        });
+
+        // Fetch Users (Requires Admin Role)
+        async function fetchUsers() {
+            try {
+                const response = await fetch(`${API_URL}/admin/users`, {
+                    method: 'GET',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${jwtToken}` // Envio del JWT
+                    }
+                });
+
+                if (response.status === 403) {
+                    showAlert('No tienes permiso para ver esta vista. Se requiere rol Administrador.', true);
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('No autorizado');
+                }
+
+                const users = await response.json();
+                const tbody = document.getElementById('users-tbody');
+                tbody.innerHTML = '';
+
+                users.forEach(user => {
+                    const roles = user.roles ? user.roles.map(r => r.name).join(', ') : 'Sin rol';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${user.id}</td>
+                        <td>${user.name}</td>
+                        <td>${user.email}</td>
+                        <td><strong>${roles}</strong></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                showAlert('Tu sesión ha expirado o no tienes permisos.', true);
+                jwtToken = null;
+                localStorage.removeItem('jwt_token');
+                toggleViews();
+            }
+        }
+
+        // Initialize view based on stored token
+        toggleViews();
+    </script>
+</body>
+</html>

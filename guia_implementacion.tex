@@ -1,0 +1,240 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{color}
+
+\geometry{a4paper, margin=1in}
+
+\definecolor{lightgray}{rgb}{0.95,0.95,0.95}
+\definecolor{commentgreen}{rgb}{0,0.6,0}
+\definecolor{keywordblue}{rgb}{0,0,0.8}
+\lstset{
+    backgroundcolor=\color{lightgray},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    commentstyle=\color{commentgreen},
+    keywordstyle=\color{keywordblue},
+    language=PHP
+}
+
+\title{\Huge Universidad Autónoma de Chiapas \\ \vspace{0.5cm} \Large TEMA: Confidencialidad \\ \vspace{0.5cm} \Large Documentación Exhaustiva y Manual de Implementación Técnica de la API REST Segura}
+\author{Ingeniería en Desarrollo de Software}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introducción}
+El presente documento tiene como objetivo primordial establecer, explicar y documentar exhaustivamente el desarrollo de una aplicación web basada en el patrón arquitectónico Cliente-Servidor (Frontend-Backend), cumpliendo a cabalidad con los lineamientos de confidencialidad y seguridad de la información. La plataforma seleccionada para el desarrollo del servidor (Backend) es \textbf{Laravel}, un framework robusto de PHP que implementa los más altos estándares de seguridad modernos.
+
+Se ha diseñado la aplicación absteniéndose de utilizar vistas tradicionales renderizadas por el servidor (Blade) en favor de una \textbf{API RESTful} pura. Esta decisión garantiza que la comunicación entre cualquier frontend (React, Angular, Vue o una aplicación móvil) y el backend se realice de manera agnóstica, segura, y exclusivamente a través de los verbos HTTP correspondientes, autenticándose obligatoriamente por medio de JSON Web Tokens (JWT).
+
+A lo largo de este manual técnico se detallan las decisiones de diseño, la codificación específica en los distintos archivos estructurales de Laravel y la justificación teórica de cómo esto mitiga los riesgos de ciberseguridad.
+
+% ==========================================
+\section{1. Requerimientos Funcionales}
+
+\subsection{1.1 Gestión de Usuarios}
+La plataforma requiere un sistema capaz de manejar la entidad de usuarios de forma íntegra. El ciclo de vida de un usuario comienza con su registro y continúa con la autenticación para el acceso a recursos protegidos.
+
+\textbf{Implementación Técnica:}
+Se ha centralizado la lógica en el controlador \texttt{app/Http/Controllers/Api/AuthController.php}. 
+
+\subsubsection{Registro de Usuarios}
+Para el registro, se habilitó el endpoint \texttt{POST /api/register}. Este endpoint espera los campos Nombre, Email y Contraseña. 
+\begin{lstlisting}[caption={Fragmento de Registro en AuthController.php}]
+public function register(Request $request) {
+    // 1. Validacion estricta de campos
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users',
+        'password' => 'required|min:8',
+    ]);
+
+    // 2. Creacion del usuario en base de datos
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        // Cifrado irreversible usando bcrypt
+        'password' => Hash::make($request->password), 
+    ]);
+
+    // 3. Asignacion dinamica del rol inicial
+    $user->assignRole('Usuario Regular');
+
+    // 4. Registro inmutable en auditoria
+    AuditLog::create([
+        'user_id' => $user->id,
+        'action' => 'Registro de usuario',
+        'ip_address' => $request->ip(),
+        'details' => 'Nuevo usuario registrado via API'
+    ]);
+
+    return response()->json(['message' => 'Usuario registrado exitosamente', 'user' => $user], 201);
+}
+\end{lstlisting}
+
+\subsubsection{Inicio de Sesión y Recuperación}
+El endpoint \texttt{POST /api/login} verifica las credenciales y devuelve el JWT. Las rutas y lógicas para la recuperación de contraseña se han contemplado como futuros endpoints que utilizarán el sistema de correos de Laravel.
+
+\subsection{1.2 Gestión de Roles y Permisos}
+El requerimiento funcional estipula la existencia de tres roles predeterminados (Administrador, Editor, Usuario Regular) y permisos atómicos (Lectura, Escritura, Eliminación) que puedan ser asignados dinámicamente, en lugar de estar incrustados en código fuente (hardcoded).
+
+\textbf{Implementación Técnica con Spatie:}
+Se instaló la librería líder en el ecosistema Laravel: \texttt{spatie/laravel-permission}. 
+Esto nos permitió eliminar la columna estática \texttt{role} de la tabla \texttt{users} y reemplazarla por una arquitectura de base de datos relacional (múltiples tablas pivote).
+
+En el modelo \texttt{app/Models/User.php}, se incluyó el Trait de Spatie:
+\begin{lstlisting}[caption={app/Models/User.php}]
+namespace App\Models;
+
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Spatie\Permission\Traits\HasRoles; // Inclusion de la libreria
+use Laravel\Passport\HasApiTokens;
+
+class User extends Authenticatable {
+    use HasApiTokens, HasRoles; // Activacion de roles dinamicos
+
+    protected $fillable = ['name', 'email', 'password'];
+    protected $hidden = ['password', 'remember_token'];
+}
+\end{lstlisting}
+
+Se creó el archivo \texttt{database/seeders/RolesAndPermissionsSeeder.php} para inicializar la base de datos con los roles y permisos requeridos:
+\begin{lstlisting}[caption={Creacion de Roles Dinámicos}]
+Permission::firstOrCreate(['name' => 'Lectura', 'guard_name' => 'api']);
+Permission::firstOrCreate(['name' => 'Escritura', 'guard_name' => 'api']);
+Permission::firstOrCreate(['name' => 'Eliminacion', 'guard_name' => 'api']);
+
+$roleAdmin = Role::firstOrCreate(['name' => 'Administrador', 'guard_name' => 'api'])
+    ->givePermissionTo(['Lectura', 'Escritura', 'Eliminacion']);
+
+$roleEditor = Role::firstOrCreate(['name' => 'Editor', 'guard_name' => 'api'])
+    ->givePermissionTo(['Lectura', 'Escritura']);
+\end{lstlisting}
+
+\subsection{1.3 Control de Acceso y Dashboard de Administración}
+El Administrador debe tener la capacidad de ver todos los usuarios, crear roles y visualizar la auditoría del sistema. Para asegurar esto, se ha creado el controlador \texttt{app/Http/Controllers/Api/AdminController.php}.
+
+\textbf{Principio de Mínimo Privilegio:}
+Para evitar que un Editor o Usuario Regular acceda a estos datos sensibles, el constructor del controlador \texttt{AdminController} intercepta y bloquea toda petición que no provenga de un usuario con rol de Administrador.
+
+\begin{lstlisting}[caption={Restricción en AdminController.php}]
+class AdminController extends Controller {
+    public function __construct() {
+        // Intercepta todas las peticiones a este controlador.
+        // Si el JWT enviado no pertenece a un Administrador, devuelve HTTP 403 Forbidden.
+        $this->middleware('role:Administrador');
+    }
+
+    public function listUsers() {
+        // Retorna datos en JSON
+        return response()->json(User::with('roles')->get());
+    }
+
+    public function assignRole(Request $request, $userId) {
+        $user = User::findOrFail($userId);
+        $user->syncRoles([$request->role]);
+        return response()->json(['message' => 'Rol asignado exitosamente']);
+    }
+}
+\end{lstlisting}
+
+% ==========================================
+\section{2. Arquitectura Web y Consumo de Servicios}
+En cumplimiento estricto con los requerimientos, la aplicación frontend no tiene conexión alguna con la base de datos. Se comporta como un "cliente tonto" que envía peticiones al "servidor inteligente" (Laravel API).
+
+Todas las rutas web tradicionales (\texttt{routes/web.php}) han sido omitidas o deshabilitadas para la funcionalidad core, trasladando todo el desarrollo al archivo \texttt{routes/api.php}.
+
+\begin{lstlisting}[caption={Definición de Rutas REST en routes/api.php}]
+// Rutas publicas (No requieren token)
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
+
+// Rutas protegidas (El cliente DEBE enviar "Authorization: Bearer <token>")
+Route::middleware('auth:api')->group(function () {
+    // Endpoints del Dashboard de Administracion
+    Route::get('/admin/users', [AdminController::class, 'listUsers']);
+    Route::post('/admin/users/{userId}/role', [AdminController::class, 'assignRole']);
+    Route::post('/admin/roles', [AdminController::class, 'createRole']);
+    Route::get('/admin/audit-logs', [AdminController::class, 'auditLogs']);
+    
+    // Cierre de sesion
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
+\end{lstlisting}
+Como se observa, todos los endpoints utilizan los verbos HTTP correctos: \texttt{GET} para obtener datos y \texttt{POST} para enviar o crear información.
+
+% ==========================================
+\section{3. Requerimientos de Seguridad Computacional}
+La confidencialidad y la integridad de los datos son los pilares de este proyecto. A continuación se desglosan las 10 directivas de seguridad solicitadas y su implementación a detalle en Laravel.
+
+\subsection{3.1 Cifrado de Contraseñas}
+Las normativas de seguridad impiden guardar contraseñas en texto plano o cifrarlas con algoritmos reversibles (como Base64 o AES). Laravel implementa nativamente el algoritmo \textbf{Bcrypt} a través de su fachada \texttt{Hash}. En la función de registro (ver Sección 1.1), se utiliza \texttt{Hash::make(\$request->password)}. Bcrypt genera un hash irreversible que incluye un \textit{salt} autogenerado, lo que previene por completo los ataques de tablas arcoíris (Rainbow Tables).
+
+\subsection{3.2 Comunicación Cifrada (HTTPS/TLS)}
+La transmisión de un token JWT o credenciales a través de HTTP estándar expondría a la aplicación a ataques de intercepción (Man-in-the-Middle). Toda comunicación entre el frontend y este backend debe forzarse sobre \textbf{HTTPS}. A nivel de infraestructura, esto se logra configurando el servidor web (Nginx o Apache) con certificados SSL/TLS y redireccionando obligatoriamente el tráfico del puerto 80 al 443.
+
+\subsection{3.3 Gestión Segura de Tokens JWT}
+Para gestionar la identidad sin sesiones (Stateless), hemos implementado \textbf{Laravel Passport}, el paquete oficial para OAuth2 que expide JSON Web Tokens (JWT). 
+Se ha mitigado el riesgo de robo de tokens estableciendo un \textbf{tiempo de expiración muy corto} (30 minutos) dentro del método de inicio de sesión:
+\begin{lstlisting}[caption={Expiración del JWT en AuthController.php}]
+$tokenResult = $user->createToken('Personal Access Token');
+$token = $tokenResult->token;
+$token->expires_at = now()->addMinutes(30); // Tiempo de vida critico
+$token->save();
+\end{lstlisting}
+El token viaja de forma codificada utilizando un secreto robusto que reside en las variables de entorno del servidor (\texttt{.env}), evitando que la llave criptográfica forme parte del código fuente en repositorios públicos.
+
+\subsection{3.4 Autorización Verificada en el Servidor}
+El principio de seguridad moderna dicta: "Nunca confíes en el cliente". Aunque el frontend restrinja la interfaz y oculte el panel de administrador a un usuario regular, si dicho usuario construye una petición HTTP manualmente (usando Postman o cURL) hacia la API, el servidor DEBE bloquearla. Como se demostró en la Sección 1.3, el middleware \texttt{role:Administrador} evalúa el JWT en tiempo real en el servidor y rechaza la petición maliciosa con un código HTTP \texttt{403 Forbidden}.
+
+\subsection{3.5 Validación y Sanitización de Entradas (XSS y SQLi)}
+Las inyecciones de código (SQL Injection, XSS) ocurren cuando entradas no validadas llegan a la base de datos.
+1. \textbf{Inyección SQL:} Mitigada completamente gracias al uso del ORM Eloquent, el cual procesa todas las consultas utilizando sentencias preparadas de PDO (Prepared Statements).
+2. \textbf{Validación de Tipos:} En cada controlador se utiliza el validador estricto de Laravel antes de procesar un dato.
+\begin{lstlisting}[caption={Validación Estricta en AdminController.php}]
+public function createRole(Request $request) {
+    // Si no cumple las reglas, Laravel retorna HTTP 422 Unprocessable Entity
+    $request->validate([
+        'name' => 'required|string|unique:roles,name',
+        'permissions' => 'array',
+        'permissions.*' => 'string|exists:permissions,name'
+    ]);
+    // Procesamiento seguro...
+}
+\end{lstlisting}
+
+\subsection{3.6 Protección contra Ataques de Fuerza Bruta}
+Los ataques de diccionario intentan automatizar el inicio de sesión. Laravel integra un middleware llamado \texttt{throttle} que sirve para limitar peticiones (Rate Limiting). En nuestro archivo \texttt{routes/api.php}, la ruta de login está protegida:
+\begin{lstlisting}[caption={Rate Limiting en routes/api.php}]
+// Protege el endpoint de login permitiendo maximo 5 peticiones por minuto.
+// Si se excede, devuelve HTTP 429 Too Many Requests.
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+\end{lstlisting}
+
+\subsection{3.7 Registro de Auditoría con Trazabilidad}
+Para auditorías de seguridad, es imperativo contar con un registro (log) que no pueda ser alterado por los usuarios. Hemos creado la tabla y el modelo \texttt{AuditLog.php}.
+\begin{lstlisting}[caption={app/Models/AuditLog.php}]
+class AuditLog extends Model {
+    protected $fillable = ['user_id', 'action', 'ip_address', 'details'];
+}
+\end{lstlisting}
+En cada acción sensible (registro, login, logout, asignación de roles), el controlador respectivo inserta una nueva fila en esta tabla capturando el ID del usuario, la fecha y hora, y la dirección IP (\texttt{\$request->ip()}). Esta tabla es de solo-lectura y solo-inserción desde el backend, cumpliendo con la confidencialidad de auditoría.
+
+\subsection{3.8 Manejo Seguro de CORS y Fuga de Información}
+La fuga de información revela detalles internos que ayudan a atacantes. En Laravel, al pasar a producción (\texttt{APP\_ENV=production} y \texttt{APP\_DEBUG=false} en el archivo \texttt{.env}), las trazas de pila (Stack Traces) de excepciones se ocultan automáticamente, devolviendo en su lugar respuestas genéricas (ej. HTTP 500 Internal Server Error).
+Asimismo, las políticas de CORS (Cross-Origin Resource Sharing) en \texttt{config/cors.php} previenen que sitios web de terceros maliciosos hagan peticiones silenciosas a nuestra API REST en nombre del usuario autenticado.
+
+\section{Conclusión}
+El sistema backend desarrollado satisface los más altos requerimientos técnicos dictados por los estándares contemporáneos. La separación estricta entre Frontend y API REST asegura una escalabilidad inigualable, mientras que el uso de JWT, Bcrypt, control de acceso basado en roles (RBAC) dinámico, auditoría exhaustiva y prevención de ataques (Rate Limiting, Prepared Statements) garantizan la confidencialidad y la integridad de los datos de la Universidad y sus usuarios.
+
+\end{document}

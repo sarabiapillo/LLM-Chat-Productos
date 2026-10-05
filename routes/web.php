@@ -1,20 +1,14 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
+// Redirigir el index a nuestro frontend HTML
 Route::get('/', function () {
-    return view('welcome');
+    return redirect('/admin.html');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+// Por si el usuario entra a /admin sin el .html
+Route::get('/admin', function () {
+    return redirect('/admin.html');
 });
 
-require __DIR__.'/auth.php';
