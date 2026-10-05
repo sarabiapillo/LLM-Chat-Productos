@@ -60,7 +60,8 @@ class AuthController extends Controller
 
         $tokenResult = $user->createToken('Personal Access Token');
         $token = $tokenResult->token;
-        $token->expires_at = now()->addMinutes(30);
+        // Extendemos el tiempo de expiración para que no caduque rápido
+        $token->expires_at = now()->addMinutes(720); // 12 horas
         $token->save();
 
         return response()->json([
