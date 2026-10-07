@@ -4,10 +4,24 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\CatalogApiController;
+use App\Http\Controllers\Api\N8nSmartFilterController;
 
-// Rutas públicas de autenticación para la app móvil (solo clientes)
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // Limit to 5 requests per minute against brute force
+// =========================================================================
+// RUTAS PÚBLICAS CONSUMIDAS POR LA APP MÓVIL ANDROID (KOTLIN) Y ESCÁNER QR
+// =========================================================================
+Route::get('/catalogo/{slug}', [CatalogApiController::class, 'getCatalogBySlug']);
+Route::get('/q/{slug}', [CatalogApiController::class, 'getCatalogBySlug']);
+Route::get('/empresas', [CatalogApiController::class, 'listActiveCompanies']);
+
+// Filtro Inteligente respaldado por n8n en Docker
+Route::post('/n8n/smart-filter', [N8nSmartFilterController::class, 'filterCatalog']);
+
+// Rutas públicas de autenticación para la app móvil (clientes con 2FA)
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register']);
+Route::post('/verify-2fa', [AuthController::class, 'verify2FA']);
+Route::post('/resend-2fa', [AuthController::class, 'resend2FA']);
 
 // Rutas protegidas (Requieren JWT de Passport)
 Route::middleware('auth:api')->group(function () {

@@ -1,0 +1,9 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {section}{\numberline {1}1. Objetivo General y Flujo de la Plataforma}{3}{section.1}%
+\contentsline {section}{\numberline {2}2. Jerarquía de Roles y Control de Acceso (RBAC)}{4}{section.2}%
+\contentsline {section}{\numberline {3}3. Modelo de Datos y Diagrama ER de Tablas MySQL}{5}{section.3}%
+\contentsline {section}{\numberline {4}4. Automatización e IA con n8n en Docker}{6}{section.4}%
+\contentsline {section}{\numberline {5}5. Conexión de la App Móvil Android (Kotlin) con Laravel API}{7}{section.5}%
+\contentsline {subsection}{\numberline {5.1}1. Definición de la API en Kotlin}{7}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}2. Extracción del QR en Kotlin}{7}{subsection.5.2}%
+\contentsline {section}{\numberline {6}6. Resumen de Tecnologías y Conclusión}{8}{section.6}%

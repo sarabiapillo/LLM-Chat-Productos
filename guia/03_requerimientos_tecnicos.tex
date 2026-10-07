@@ -1,0 +1,193 @@
+\section{Requerimientos Técnicos}
+\begin{enumerate}
+    \item \textbf{Lenguaje y SMBD:} PHP con Laravel. Motor de base de datos MySQL/SQLite a través del ORM Eloquent.
+    \item \textbf{Frontend Web:} Aplicación accesible desde navegador usando HTML/CSS/JS avanzado con diseño Glassmorphism e inyecciones vía AJAX.
+    \item \textbf{API REST Plena:} Se utilizaron los verbos HTTP \texttt{GET, POST, PUT, DELETE}. Todas las respuestas devuelven \texttt{application/json}.
+    \item \textbf{Autenticación JWT:}
+    El inicio de sesión usa \textbf{Laravel Passport} (OAuth2). Valida credenciales, firma el JWT y el middleware \texttt{auth:api} se encarga de interceptar y validar automáticamente la firma en peticiones subsecuentes.
+\end{enumerate}
+En las secciones siguientes se detalla cómo está construido cada uno de estos puntos.
+
+\subsection{Lenguaje, framework y base de datos}
+
+\subsubsection{Configuración de la base de datos}
+La conexión se define en el archivo de entorno \texttt{.env} (que \textbf{no} se versiona) mediante la variable \texttt{DB\_CONNECTION}. En el entorno de desarrollo se usa \texttt{sqlite}, con el archivo \texttt{database/database.sqlite}. Para pasar a MySQL basta cambiar las variables de conexión (\texttt{DB\_CONNECTION=mysql}, \texttt{DB\_HOST}, \texttt{DB\_DATABASE}, \texttt{DB\_USERNAME}, \texttt{DB\_PASSWORD}) sin tocar una sola línea de código, porque todo el acceso se realiza a través de Eloquent y del constructor de consultas de Laravel.
+
+\subsubsection{Migraciones}
+La estructura de la base se versiona en \texttt{database/migrations/}. Cada archivo es una clase con un método \texttt{up()} (crear) y otro \texttt{down()} (revertir). Se ejecutan con:
+\begin{lstlisting}[language=bash, caption={Crear tablas y cargar datos iniciales}]
+php artisan migrate
+php artisan db:seed --class=RolesAndPermissionsSeeder
+\end{lstlisting}
+
+\begin{longtable}{p{7.2cm}p{7.8cm}}
+\toprule
+\textbf{Migración} & \textbf{Tablas que crea o modifica} \\
+\midrule
+\endhead
+\texttt{0001\_01\_01\_000000\_create\_users\_table} & \texttt{users}, \texttt{password\_reset\_tokens}, \texttt{sessions}. \\
+\texttt{0001\_01\_01\_000001\_create\_cache\_table} & \texttt{cache}, \texttt{cache\_locks}. \\
+\texttt{0001\_01\_01\_000002\_create\_jobs\_table} & \texttt{jobs}, \texttt{job\_batches}, \texttt{failed\_jobs}. \\
+\texttt{2026\_10\_05\_012439\_create\_personal\_access\_tokens\_table} & \texttt{personal\_access\_tokens} (Sanctum, instalado inicialmente). \\
+\texttt{2026\_10\_05\_014524...014528\_create\_oauth\_*} & \texttt{oauth\_auth\_codes}, \texttt{oauth\_access\_tokens}, \texttt{oauth\_refresh\_tokens}, \texttt{oauth\_clients}, \texttt{oauth\_device\_codes} (Passport). \\
+\texttt{2026\_10\_05\_015658\_add\_role\_to\_users\_table} & Columna \texttt{role} (enum) en \texttt{users}. Ver observaciones. \\
+\texttt{2026\_10\_05\_015659\_create\_audit\_logs\_table} & \texttt{audit\_logs}. \\
+\texttt{2026\_10\_05\_021919\_create\_permission\_tables} & Tablas de Spatie (roles y permisos). \\
+\bottomrule
+\end{longtable}
+
+\begin{nota}[Evolución del proyecto]
+El orden cronológico de las migraciones refleja cómo evolucionó el diseño: primero se instaló Sanctum (\texttt{personal\_access\_tokens}), luego se migró a Passport (tablas \texttt{oauth\_*}) para obtener firmas JWT con RSA, y finalmente se reemplazó la columna simple \texttt{role} por el sistema completo de Spatie. La columna \texttt{role} y la tabla de Sanctum permanecen en el esquema pero la lógica actual no las utiliza.
+\end{nota}
+
+\subsubsection{Acceso a datos y protección contra inyección SQL}
+Ninguna consulta del proyecto concatena texto proporcionado por el usuario dentro de SQL. Todos los accesos usan Eloquent (\texttt{User::where(...)}, \texttt{User::findOrFail(...)}, \texttt{AuditLog::create(...)}), que internamente emplea \emph{sentencias preparadas} con parámetros enlazados (PDO). Ejemplo:
+
+\begin{lstlisting}[caption={Consulta del login y SQL equivalente generado}]
+$user = User::where('email', $request->email)->first();
+
+-- SQL generado (el valor viaja como parametro, no como texto SQL):
+select * from "users" where "email" = ? limit 1
+\end{lstlisting}
+Aunque un atacante envíe como correo \texttt{' OR 1=1 --}, el valor se trata como un simple dato y no como parte de la instrucción; además la regla \texttt{email} de la validación ya lo rechazaría por formato.
+
+\subsection{Frontend web}
+El frontend es una aplicación de una sola página (\textit{SPA}) en \texttt{public/admin.html} con estilos propios (efecto \emph{glassmorphism}: paneles translúcidos con desenfoque de fondo) y JavaScript puro. Las operaciones se hacen con AJAX mediante \texttt{fetch()}, sin recargar la página. El capítulo \ref{sec:frontend} describe su funcionamiento.
+
+\subsection{API REST plena}
+
+\subsubsection{Verbos HTTP y su semántica}
+\begin{longtable}{p{2cm}p{5cm}p{8cm}}
+\toprule
+\textbf{Verbo} & \textbf{Semántica} & \textbf{Uso en el proyecto} \\
+\midrule
+\endhead
+GET & Leer, sin efectos secundarios. & \texttt{/user}, \texttt{/admin/users}, \texttt{/admin/audit-logs}. \\
+POST & Crear o ejecutar una acción. & \texttt{/register}, \texttt{/login}, \texttt{/logout}, \texttt{/admin/users}, \texttt{/admin/roles}. \\
+PUT & Actualizar un recurso existente. & \texttt{/admin/users/\{id\}}. \\
+DELETE & Eliminar un recurso. & \texttt{/admin/users/\{id\}}. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Catálogo completo de endpoints}
+La salida del comando \texttt{php artisan route:list --path=api} muestra los 16 endpoints registrados:
+\begin{longtable}{p{1.5cm}p{5.8cm}p{2.8cm}p{4.9cm}}
+\toprule
+\textbf{Verbo} & \textbf{URL} & \textbf{Acceso} & \textbf{Estado} \\
+\midrule
+\endhead
+POST & \texttt{/api/v1/register} & Público & Implementado \\
+POST & \texttt{/api/v1/login} & Público (limitado 5/min) & Implementado \\
+POST & \texttt{/api/v1/logout} & Token & Implementado \\
+GET & \texttt{/api/v1/user} & Token & Devuelve el usuario autenticado \\
+PUT & \texttt{/api/v1/user/profile} & Token & Marcador (pendiente) \\
+GET & \texttt{/api/v1/conversations} & Token & Marcador (pendiente) \\
+POST & \texttt{/api/v1/conversations} & Token & Marcador (pendiente) \\
+GET & \texttt{/api/v1/conversations/\{id\}/messages} & Token & Marcador (pendiente) \\
+POST & \texttt{/api/v1/chat/send} & Token & Marcador (pendiente) \\
+GET & \texttt{/api/v1/admin/users} & Token + Administrador & Implementado \\
+POST & \texttt{/api/v1/admin/users} & Token + Administrador & Implementado \\
+PUT & \texttt{/api/v1/admin/users/\{userId\}} & Token + Administrador & Implementado \\
+DELETE & \texttt{/api/v1/admin/users/\{userId\}} & Token + Administrador & Implementado \\
+POST & \texttt{/api/v1/admin/users/\{userId\}/role} & Token + Administrador & Implementado \\
+POST & \texttt{/api/v1/admin/roles} & Token + Administrador & Implementado \\
+GET & \texttt{/api/v1/admin/audit-logs} & Token + Administrador & Implementado \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Respuestas siempre en JSON}
+Los controladores devuelven siempre \texttt{response()->json(...)}, que fija el encabezado \texttt{Content-Type: application/json}. Para que \emph{los errores} de validación y de autenticación también salgan en JSON (y no como una redirección o una página HTML), el cliente debe enviar el encabezado \texttt{Accept: application/json}; el dashboard lo hace en cada llamada.
+
+\subsubsection{Códigos de estado usados}
+\begin{longtable}{p{1.5cm}p{4.5cm}p{9cm}}
+\toprule
+\textbf{Código} & \textbf{Significado} & \textbf{Dónde ocurre} \\
+\midrule
+\endhead
+200 & OK & Consultas y actualizaciones exitosas. \\
+201 & Created & Registro, creación de usuarios y de roles. \\
+400 & Bad Request & Un administrador intenta eliminarse a sí mismo. \\
+401 & Unauthorized & Credenciales incorrectas en el login; token ausente, inválido, vencido o revocado. \\
+403 & Forbidden & Usuario autenticado sin el rol requerido (\texttt{RoleMiddleware}). \\
+404 & Not Found & \texttt{findOrFail} sobre un usuario inexistente. \\
+422 & Unprocessable Entity & Falla de validación de datos de entrada. \\
+429 & Too Many Requests & Más de 5 intentos de login por minuto. \\
+500 & Internal Server Error & Error no controlado (mensaje genérico en producción). \\
+\bottomrule
+\end{longtable}
+
+\subsection{Autenticación JWT con Laravel Passport}
+
+\subsubsection{Por qué Passport}
+Laravel Passport implementa un servidor OAuth2 completo y emite tokens de acceso en formato JWT firmados con criptografía asimétrica RSA. Frente a un token opaco simple, esto tiene dos ventajas: el token es verificable sin consultar secretos compartidos y su firma no puede falsificarse sin la clave privada, que solo conoce el servidor.
+
+\subsubsection{Configuración del guard}
+En \texttt{config/auth.php} se declara el guard \texttt{api} usando el driver de Passport:
+\begin{lstlisting}[caption={config/auth.php (fragmento)}]
+'guards' => [
+    'web' => [
+        'driver' => 'session',
+        'provider' => 'users',
+    ],
+
+    'api' => [
+        'driver' => 'passport',
+        'provider' => 'users',
+    ],
+],
+\end{lstlisting}
+Un \emph{guard} define \emph{cómo} se autentica cada petición. El guard \texttt{web} usa sesiones y cookies (para vistas tradicionales); el guard \texttt{api} lee el token \texttt{Bearer} del encabezado. El middleware \texttt{auth:api} de las rutas selecciona explícitamente este segundo guard.
+
+\subsubsection{Claves RSA}
+Passport firma los tokens con un par de claves generado mediante:
+\begin{lstlisting}[language=bash, caption={Generación de claves y cliente de Passport}]
+php artisan passport:keys
+\end{lstlisting}
+Se crean dos archivos en \texttt{storage/}:
+\begin{itemize}
+    \item \texttt{oauth-private.key}: clave \textbf{privada}. Firma los tokens. Es secreta.
+    \item \texttt{oauth-public.key}: clave pública. Permite verificar las firmas.
+\end{itemize}
+Los permisos verificados en el servidor son \texttt{-rw-------} (modo \texttt{600}) para ambas, con propietario \texttt{www-data}: solo ese usuario puede leerlas o escribirlas. Además, el archivo \texttt{.gitignore} contiene la regla \texttt{/storage/*.key}, por lo que \textbf{nunca se suben al repositorio}.
+
+\subsubsection{Tablas de Passport}
+\begin{longtable}{p{5.2cm}p{9.8cm}}
+\toprule
+\textbf{Tabla} & \textbf{Función} \\
+\midrule
+\endhead
+\texttt{oauth\_access\_tokens} & Un registro por cada token emitido: usuario, cliente, \texttt{revoked} (booleano), \texttt{expires\_at}. Es la tabla que consulta Passport para saber si un token fue revocado. \\
+\texttt{oauth\_refresh\_tokens} & Tokens de renovación (flujos OAuth2 completos). \\
+\texttt{oauth\_auth\_codes} & Códigos de autorización (flujo \emph{authorization code}). \\
+\texttt{oauth\_clients} & Aplicaciones cliente registradas. \\
+\texttt{oauth\_device\_codes} & Flujo de autorización por dispositivo. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Ciclo de vida de un token}
+\begin{enumerate}
+    \item \textbf{Emisión.} En el login, \texttt{createToken()} inserta una fila en \texttt{oauth\_access\_tokens} y genera el JWT firmado con la clave privada.
+    \item \textbf{Uso.} El cliente envía el JWT en \texttt{Authorization: Bearer}. El guard de Passport verifica la firma con la clave pública, comprueba \texttt{exp} y consulta que la fila correspondiente no esté revocada.
+    \item \textbf{Vigencia.} 12 horas desde el login (ver siguiente apartado).
+    \item \textbf{Revocación.} En el logout, \texttt{revoke()} marca \texttt{revoked = 1}. El token deja de funcionar de inmediato.
+\end{enumerate}
+
+\subsubsection{Cómo se valida cada petición}
+El middleware \texttt{auth:api} realiza las siguientes comprobaciones antes de ejecutar el controlador. Si cualquiera falla, la respuesta es 401:
+\begin{enumerate}
+    \item El encabezado \texttt{Authorization} existe y comienza con \texttt{Bearer}.
+    \item El token tiene una estructura JWT válida (tres segmentos).
+    \item La \textbf{firma RS256} coincide con la clave pública (el token no fue alterado).
+    \item La fecha de expiración (\texttt{exp}) no ha pasado.
+    \item El token no está marcado como revocado en la base de datos.
+    \item El usuario al que pertenece (\texttt{sub}) todavía existe.
+\end{enumerate}
+
+\begin{lstlisting}[language=bash, caption={Comportamiento sin token y con token manipulado}]
+curl -i http://127.0.0.1:8000/api/v1/user -H "Accept: application/json"
+# HTTP/1.1 401 Unauthorized   {"message":"Unauthenticated."}
+
+curl -i http://127.0.0.1:8000/api/v1/user \
+  -H "Accept: application/json" -H "Authorization: Bearer token.falso.123"
+# HTTP/1.1 401 Unauthorized   {"message":"Unauthenticated."}
+\end{lstlisting}

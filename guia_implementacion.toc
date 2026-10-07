@@ -1,21 +1,106 @@
 \babel@toc {spanish}{}\relax 
-\contentsline {section}{\numberline {1}Objetivo del Caso Práctico}{3}{section.1}%
-\contentsline {section}{\numberline {2}Requerimientos Funcionales}{3}{section.2}%
-\contentsline {subsection}{\numberline {2.1}1. Gestión de Usuarios}{3}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}2. Gestión de Roles}{3}{subsection.2.2}%
-\contentsline {subsection}{\numberline {2.3}3. Gestión de Permisos}{3}{subsection.2.3}%
-\contentsline {subsection}{\numberline {2.4}4. Control de Acceso y Auditoría}{3}{subsection.2.4}%
-\contentsline {subsection}{\numberline {2.5}5. Dashboard de Administración}{4}{subsection.2.5}%
-\contentsline {subsection}{\numberline {2.6}6. Arquitectura Web y Consumo de Servicios}{4}{subsection.2.6}%
-\contentsline {section}{\numberline {3}Requerimientos Técnicos}{4}{section.3}%
-\contentsline {section}{\numberline {4}Requerimientos de Seguridad Computacional}{4}{section.4}%
-\contentsline {subsection}{\numberline {4.1}1. Cifrado de contraseñas}{4}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}2. Comunicación Cifrada (HTTPS/TLS)}{5}{subsection.4.2}%
-\contentsline {subsection}{\numberline {4.3}3. Gestión segura de tokens JWT}{5}{subsection.4.3}%
-\contentsline {subsection}{\numberline {4.4}4. Autorización verificada en el servidor}{5}{subsection.4.4}%
-\contentsline {subsection}{\numberline {4.5}5. Validación y Sanitización de Entradas}{5}{subsection.4.5}%
-\contentsline {subsection}{\numberline {4.6}6. Protección contra ataques de fuerza bruta}{5}{subsection.4.6}%
-\contentsline {subsection}{\numberline {4.7}7. Registro de auditoría con trazabilidad}{5}{subsection.4.7}%
-\contentsline {subsection}{\numberline {4.8}8. Manejo seguro de CORS}{5}{subsection.4.8}%
-\contentsline {subsection}{\numberline {4.9}9. Principio de Mínimo Privilegio}{5}{subsection.4.9}%
-\contentsline {subsection}{\numberline {4.10}10. Manejo de errores sin fuga de información}{6}{subsection.4.10}%
+\contentsline {section}{\numberline {1}Objetivo del Caso Práctico}{6}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Cómo leer este documento}{6}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Alcance del proyecto}{6}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Arquitectura General}{7}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Pila tecnológica}{7}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Estructura de carpetas relevante}{7}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Prefijo y versionado de la API}{8}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Flujo completo de una petición protegida}{9}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Principio de arquitectura desacoplada}{9}{subsection.2.5}%
+\contentsline {section}{\numberline {3}Requerimientos Funcionales}{10}{section.3}%
+\contentsline {subsection}{\numberline {3.1}1. Gestión de Usuarios}{10}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Registro de usuarios}{10}{subsubsection.3.1.1}%
+\contentsline {subsubsection}{\numberline {3.1.2}Inicio de sesión y emisión del JWT}{12}{subsubsection.3.1.2}%
+\contentsline {subsubsection}{\numberline {3.1.3}Estructura de un JWT}{13}{subsubsection.3.1.3}%
+\contentsline {subsubsection}{\numberline {3.1.4}Cierre de sesión}{14}{subsubsection.3.1.4}%
+\contentsline {subsubsection}{\numberline {3.1.5}Recuperación de contraseña}{14}{subsubsection.3.1.5}%
+\contentsline {subsection}{\numberline {3.2}2. Gestión de Roles}{14}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}El seeder paso a paso}{14}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}Matriz de roles y permisos}{15}{subsubsection.3.2.2}%
+\contentsline {subsubsection}{\numberline {3.2.3}Usuarios de demostración}{15}{subsubsection.3.2.3}%
+\contentsline {subsubsection}{\numberline {3.2.4}Cómo se vincula un usuario con un rol}{16}{subsubsection.3.2.4}%
+\contentsline {subsection}{\numberline {3.3}3. Gestión de Permisos}{16}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}Modelo de datos de Spatie}{16}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}Creación dinámica de roles}{17}{subsubsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.4}4. Control de Acceso y Auditoría}{18}{subsection.3.4}%
+\contentsline {subsubsection}{\numberline {3.4.1}El middleware de roles}{18}{subsubsection.3.4.1}%
+\contentsline {subsubsection}{\numberline {3.4.2}Dónde se aplica}{18}{subsubsection.3.4.2}%
+\contentsline {subsubsection}{\numberline {3.4.3}Prueba del control de acceso}{19}{subsubsection.3.4.3}%
+\contentsline {subsubsection}{\numberline {3.4.4}La bitácora de auditoría}{19}{subsubsection.3.4.4}%
+\contentsline {subsection}{\numberline {3.5}5. Dashboard de Administración}{21}{subsection.3.5}%
+\contentsline {subsubsection}{\numberline {3.5.1}Tabla resumen de endpoints de administración}{21}{subsubsection.3.5.1}%
+\contentsline {subsubsection}{\numberline {3.5.2}Detalles de implementación destacables}{21}{subsubsection.3.5.2}%
+\contentsline {subsection}{\numberline {3.6}6. Arquitectura Web y Consumo de Servicios}{22}{subsection.3.6}%
+\contentsline {section}{\numberline {4}Requerimientos Técnicos}{23}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Lenguaje, framework y base de datos}{23}{subsection.4.1}%
+\contentsline {subsubsection}{\numberline {4.1.1}Configuración de la base de datos}{23}{subsubsection.4.1.1}%
+\contentsline {subsubsection}{\numberline {4.1.2}Migraciones}{23}{subsubsection.4.1.2}%
+\contentsline {subsubsection}{\numberline {4.1.3}Acceso a datos y protección contra inyección SQL}{24}{subsubsection.4.1.3}%
+\contentsline {subsection}{\numberline {4.2}Frontend web}{25}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}API REST plena}{25}{subsection.4.3}%
+\contentsline {subsubsection}{\numberline {4.3.1}Verbos HTTP y su semántica}{25}{subsubsection.4.3.1}%
+\contentsline {subsubsection}{\numberline {4.3.2}Catálogo completo de endpoints}{25}{subsubsection.4.3.2}%
+\contentsline {subsubsection}{\numberline {4.3.3}Respuestas siempre en JSON}{26}{subsubsection.4.3.3}%
+\contentsline {subsubsection}{\numberline {4.3.4}Códigos de estado usados}{26}{subsubsection.4.3.4}%
+\contentsline {subsection}{\numberline {4.4}Autenticación JWT con Laravel Passport}{27}{subsection.4.4}%
+\contentsline {subsubsection}{\numberline {4.4.1}Por qué Passport}{27}{subsubsection.4.4.1}%
+\contentsline {subsubsection}{\numberline {4.4.2}Configuración del guard}{27}{subsubsection.4.4.2}%
+\contentsline {subsubsection}{\numberline {4.4.3}Claves RSA}{27}{subsubsection.4.4.3}%
+\contentsline {subsubsection}{\numberline {4.4.4}Tablas de Passport}{28}{subsubsection.4.4.4}%
+\contentsline {subsubsection}{\numberline {4.4.5}Ciclo de vida de un token}{28}{subsubsection.4.4.5}%
+\contentsline {subsubsection}{\numberline {4.4.6}Cómo se valida cada petición}{28}{subsubsection.4.4.6}%
+\contentsline {section}{\numberline {5}Requerimientos de Seguridad Computacional}{29}{section.5}%
+\contentsline {subsection}{\numberline {5.1}1. Cifrado de contraseñas}{29}{subsection.5.1}%
+\contentsline {subsubsection}{\numberline {5.1.1}Dónde se aplica}{29}{subsubsection.5.1.1}%
+\contentsline {subsubsection}{\numberline {5.1.2}Cómo funciona Bcrypt}{29}{subsubsection.5.1.2}%
+\contentsline {subsubsection}{\numberline {5.1.3}Verificación}{30}{subsubsection.5.1.3}%
+\contentsline {subsection}{\numberline {5.2}2. Comunicación Cifrada (HTTPS/TLS)}{30}{subsection.5.2}%
+\contentsline {subsubsection}{\numberline {5.2.1}Por qué es indispensable}{30}{subsubsection.5.2.1}%
+\contentsline {subsubsection}{\numberline {5.2.2}Cómo se implementa en producción}{30}{subsubsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.3}3. Gestión segura de tokens JWT}{31}{subsection.5.3}%
+\contentsline {subsubsection}{\numberline {5.3.1}Expiración}{31}{subsubsection.5.3.1}%
+\contentsline {subsubsection}{\numberline {5.3.2}Firma y permisos de las claves}{32}{subsubsection.5.3.2}%
+\contentsline {subsubsection}{\numberline {5.3.3}Revocación}{32}{subsubsection.5.3.3}%
+\contentsline {subsubsection}{\numberline {5.3.4}Almacenamiento del token en el cliente}{32}{subsubsection.5.3.4}%
+\contentsline {subsection}{\numberline {5.4}4. Autorización verificada en el servidor}{32}{subsection.5.4}%
+\contentsline {subsubsection}{\numberline {5.4.1}El principio}{32}{subsubsection.5.4.1}%
+\contentsline {subsubsection}{\numberline {5.4.2}Implementación}{33}{subsubsection.5.4.2}%
+\contentsline {subsubsection}{\numberline {5.4.3}Prueba de que el ocultamiento visual no basta}{33}{subsubsection.5.4.3}%
+\contentsline {subsection}{\numberline {5.5}5. Validación y Sanitización de Entradas}{33}{subsection.5.5}%
+\contentsline {subsubsection}{\numberline {5.5.1}Reglas aplicadas por endpoint}{33}{subsubsection.5.5.1}%
+\contentsline {subsubsection}{\numberline {5.5.2}Defensas combinadas}{34}{subsubsection.5.5.2}%
+\contentsline {subsubsection}{\numberline {5.5.3}Ejemplo de rechazo por validación}{34}{subsubsection.5.5.3}%
+\contentsline {subsection}{\numberline {5.6}6. Protección contra ataques de fuerza bruta}{35}{subsection.5.6}%
+\contentsline {subsubsection}{\numberline {5.6.1}Dónde está}{35}{subsubsection.5.6.1}%
+\contentsline {subsubsection}{\numberline {5.6.2}Cómo funciona}{35}{subsubsection.5.6.2}%
+\contentsline {subsubsection}{\numberline {5.6.3}Combinación con otras defensas}{35}{subsubsection.5.6.3}%
+\contentsline {subsection}{\numberline {5.7}7. Registro de auditoría con trazabilidad}{35}{subsection.5.7}%
+\contentsline {subsubsection}{\numberline {5.7.1}Qué eventos quedan registrados}{35}{subsubsection.5.7.1}%
+\contentsline {subsubsection}{\numberline {5.7.2}Cómo consultar la bitácora}{36}{subsubsection.5.7.2}%
+\contentsline {subsubsection}{\numberline {5.7.3}Sobre la inmutabilidad y la confidencialidad}{36}{subsubsection.5.7.3}%
+\contentsline {subsection}{\numberline {5.8}8. Manejo seguro de CORS}{37}{subsection.5.8}%
+\contentsline {subsubsection}{\numberline {5.8.1}Qué es CORS}{37}{subsubsection.5.8.1}%
+\contentsline {subsubsection}{\numberline {5.8.2}Configuración}{37}{subsubsection.5.8.2}%
+\contentsline {subsection}{\numberline {5.9}9. Principio de Mínimo Privilegio}{37}{subsection.5.9}%
+\contentsline {subsubsection}{\numberline {5.9.1}Cómo se aplica en el proyecto}{38}{subsubsection.5.9.1}%
+\contentsline {subsubsection}{\numberline {5.9.2}Comparación de capacidades por rol}{38}{subsubsection.5.9.2}%
+\contentsline {subsection}{\numberline {5.10}10. Manejo de errores sin fuga de información}{38}{subsection.5.10}%
+\contentsline {subsubsection}{\numberline {5.10.1}Por qué importa}{38}{subsubsection.5.10.1}%
+\contentsline {subsubsection}{\numberline {5.10.2}Configuración requerida en el archivo .env de producción}{39}{subsubsection.5.10.2}%
+\contentsline {subsubsection}{\numberline {5.10.3}Comportamiento esperado}{39}{subsubsection.5.10.3}%
+\contentsline {section}{\numberline {6}Frontend Web y Experiencia de Usuario}{39}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Diseño y Estética (Glassmorphism)}{39}{subsection.6.1}%
+\contentsline {subsubsection}{\numberline {6.1.1}Implementación visual}{40}{subsubsection.6.1.1}%
+\contentsline {subsection}{\numberline {6.2}Estructura Lógica del Cliente}{40}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Consumo Seguro de la API REST}{40}{subsection.6.3}%
+\contentsline {subsubsection}{\numberline {6.3.1}Gestión del Token en el cliente}{40}{subsubsection.6.3.1}%
+\contentsline {subsubsection}{\numberline {6.3.2}Prevención de XSS en la construcción del DOM}{41}{subsubsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.4}Manejo de Errores y Respuesta visual}{41}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Pruebas de la API vía CLI}{42}{subsection.6.5}%
+\contentsline {section}{\numberline {7}Arquitectura SaaS Multi-Tenant y App Móvil Kotlin}{42}{section.7}%
+\contentsline {subsection}{\numberline {7.1}1. Objetivo General de la Plataforma}{42}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}2. Jerarquía de Roles y Matriz de Control de Acceso}{42}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}3. Modelo de Datos y Diagrama de Tablas MySQL}{43}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}4. Comparativa de Tecnologías Utilizadas}{44}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}5. Flujo de Integración API con App Móvil Kotlin}{45}{subsection.7.5}%

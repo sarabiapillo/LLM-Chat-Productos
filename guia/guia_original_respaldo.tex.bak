@@ -1,0 +1,133 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{enumitem}
+
+\geometry{a4paper, margin=1in}
+
+\definecolor{lightgray}{rgb}{0.95,0.95,0.95}
+\definecolor{commentgreen}{rgb}{0,0.6,0}
+\definecolor{keywordblue}{rgb}{0,0,0.8}
+\lstset{
+    backgroundcolor=\color{lightgray},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    commentstyle=\color{commentgreen},
+    keywordstyle=\color{keywordblue},
+    language=PHP
+}
+
+\title{\Huge Universidad Autónoma de Chiapas \\ \vspace{0.5cm} \Large TEMA: Confidencialidad \\ \vspace{0.5cm} \Large Documentación Técnica: Implementación de API REST y Seguridad}
+\author{Ingeniería en Desarrollo de Software}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\section{Objetivo del Caso Práctico}
+El objetivo es desarrollar una aplicación web que implemente autenticación y autorización basada en roles (RBAC), consumiendo una API REST protegida mediante JSON Web Tokens (JWT). Se garantiza que los usuarios accedan a diferentes funcionalidades según su rol, asegurando la confidencialidad e integridad de la información en todo momento.
+
+\textbf{Solución Tecnológica:} Se eligió \textbf{Laravel 11} (PHP) como motor backend y un frontend desacoplado desarrollado en HTML/CSS/JS (Vanilla).
+
+\section{Requerimientos Funcionales}
+
+\subsection{1. Gestión de Usuarios}
+Se crearon los endpoints en \texttt{AuthController.php}:
+\begin{itemize}
+    \item \textbf{Registro:} \texttt{POST /api/v1/register} (Nombre, Email, Contraseña).
+    \item \textbf{Inicio de Sesión:} \texttt{POST /api/v1/login} que devuelve el JWT.
+    \item \textbf{Recuperación de Contraseña:} La arquitectura de base de datos soporta los flujos de \texttt{password\_resets} integrados en Laravel.
+\end{itemize}
+
+\subsection{2. Gestión de Roles}
+Se integró el paquete \textbf{Spatie Laravel Permission} para gestionar de manera dinámica los tres roles predeterminados:
+\begin{itemize}
+    \item \textbf{Administrador:} Tiene acceso total (Lectura, Escritura, Eliminación).
+    \item \textbf{Editor:} Tiene permisos limitados (Lectura, Escritura).
+    \item \textbf{Usuario Regular:} Solo tiene permiso de lectura.
+\end{itemize}
+Estos fueron insertados en la base de datos a través de \texttt{RolesAndPermissionsSeeder.php}.
+
+\subsection{3. Gestión de Permisos}
+Los permisos (\textit{Lectura, Escritura, Eliminación}) están desacoplados del código fuente y residen en tablas relacionales (\texttt{role\_has\_permissions}). Esto permite asignar permisos a los roles de forma dinámica y aplicar políticas a áreas específicas de la aplicación.
+
+\subsection{4. Control de Acceso y Auditoría}
+El acceso está controlado desde el backend usando \texttt{Route::middleware('role:Administrador')}. Si un Editor intenta acceder a una ruta de Administrador, el servidor responde con \textbf{403 Forbidden}. \\
+\textbf{Historial de Acceso:} Se creó el modelo \texttt{AuditLog} en Laravel. En cada acción (registro, login, asignar rol), se captura la dirección IP del usuario, ID, y acción, guardándola de forma inmutable.
+
+\subsection{5. Dashboard de Administración}
+El \texttt{AdminController.php} expone las siguientes rutas protegidas exclusivas para administradores:
+\begin{itemize}
+    \item Ver usuarios registrados (\texttt{GET /admin/users}).
+    \item Crear, editar y eliminar usuarios (\texttt{POST, PUT, DELETE}).
+    \item Asignar/revocar roles (\texttt{POST /admin/users/\{id\}/role}).
+    \item Crear roles (\texttt{POST /admin/roles}).
+    \item Consultar registros de auditoría (\texttt{GET /admin/audit-logs}).
+\end{itemize}
+
+\subsection{6. Arquitectura Web y Consumo de Servicios}
+Se aplicó una \textbf{arquitectura desacoplada estricta}:
+\begin{itemize}
+    \item \textbf{Frontend:} Es un cliente tonto (\texttt{public/admin.html}) que no tiene acceso a la base de datos.
+    \item \textbf{Backend:} Expone todo exclusivamente a través de la API REST (\texttt{routes/api.php}).
+    \item \textbf{JWT:} La comunicación viaja en los headers como \texttt{Authorization: Bearer <token>}. No se usan Vistas de Blade para el renderizado del dashboard para no romper la regla del estado (Stateless).
+\end{itemize}
+
+% ====================================================
+
+\section{Requerimientos Técnicos}
+\begin{enumerate}
+    \item \textbf{Lenguaje y SMBD:} PHP con Laravel 11. Motor de base de datos MySQL/SQLite a través del ORM Eloquent.
+    \item \textbf{Frontend Web:} Aplicación accesible desde navegador usando HTML/CSS/JS avanzado con diseño Glassmorphism e inyecciones vía AJAX.
+    \item \textbf{API REST Plena:} Se utilizaron los verbos HTTP \texttt{GET, POST, PUT, DELETE}. Todas las respuestas devuelven \texttt{application/json}.
+    \item \textbf{Autenticación JWT:}
+    El inicio de sesión usa \textbf{Laravel Passport} (OAuth2). Valida credenciales, firma el JWT y el middleware \texttt{auth:api} se encarga de interceptar y validar automáticamente la firma en peticiones subsecuentes.
+\end{enumerate}
+
+% ====================================================
+
+\section{Requerimientos de Seguridad Computacional}
+
+\subsection{1. Cifrado de contraseñas}
+Se utilizó el algoritmo \textbf{Bcrypt} con \textit{salt} autogenerado utilizando el \textit{Facade} \texttt{Hash::make(\$password)} de Laravel. Ninguna contraseña es reversible ni se almacena en texto plano.
+
+\subsection{2. Comunicación Cifrada (HTTPS/TLS)}
+Se estableció en las directivas de despliegue que todo el tráfico se forzará por HTTPS. La API interceptará el protocolo para evitar secuestros de sesión (Man-in-the-Middle).
+
+\subsection{3. Gestión segura de tokens JWT}
+\begin{itemize}
+    \item \textbf{Expiración:} Originalmente se configuró un tiempo corto. Posteriormente se ajustó para propósitos de evaluación.
+    \item \textbf{Firma:} El token es firmado internamente usando claves RSA (RS256) generadas con el comando \texttt{passport:keys}. Dichas claves (\texttt{oauth-private.key}) tienen permisos estrictos \texttt{600} y no se almacenan en el control de versiones.
+\end{itemize}
+
+\subsection{4. Autorización verificada en el servidor}
+Independientemente de que el frontend oculte visualmente botones mediante CSS/JS, la seguridad principal recae en el servidor mediante los Middlewares \texttt{role} y \texttt{permission}.
+
+\subsection{5. Validación y Sanitización de Entradas}
+Laravel protege contra Inyección SQL mediante sentencias preparadas de PDO en su ORM. Para ataques XSS y validaciones masivas, se usó \texttt{\$request->validate()} para sanear tipos de datos en todos los Controladores.
+
+\subsection{6. Protección contra ataques de fuerza bruta}
+Se protegió el endpoint \texttt{/login} con el middleware \texttt{throttle:5,1}. Si un atacante falla la contraseña más de 5 veces en un minuto, recibe un código \textbf{429 Too Many Requests}.
+
+\subsection{7. Registro de auditoría con trazabilidad}
+El modelo \texttt{AuditLog} guarda el \texttt{user\_id}, \texttt{ip\_address}, \texttt{action} y \texttt{timestamp}. Estos registros solo pueden insertarse mediante lógica en el backend y no pueden ser alterados por nadie, manteniendo su peso legal y confidencial.
+
+\subsection{8. Manejo seguro de CORS}
+El archivo \texttt{config/cors.php} restringe qué orígenes pueden consumir la API, previniendo que scripts maliciosos alojados en otros dominios roben la sesión o datos.
+
+\subsection{9. Principio de Mínimo Privilegio}
+Un editor no puede ver la tabla de usuarios. Un usuario no puede borrar contenido. Esto se logró definiendo reglas atómicas en Spatie y limitando los accesos a lo que estrictamente requiere cada función.
+
+\subsection{10. Manejo de errores sin fuga de información}
+Se configuró el entorno \texttt{APP\_ENV=production} y \texttt{APP\_DEBUG=false}. En caso de que falle la base de datos o el código, el usuario no verá trazas de pila (Stack Traces) ni configuraciones internas; solo recibirá un error \textbf{HTTP 500} genérico.
+
+\end{document}

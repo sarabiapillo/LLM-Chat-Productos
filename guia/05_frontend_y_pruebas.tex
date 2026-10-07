@@ -1,0 +1,96 @@
+\section{Frontend Web y Experiencia de Usuario}
+\label{sec:frontend}
+El cliente web es una aplicación de una sola página (SPA) autocontenida en el archivo \texttt{public/admin.html}. Su objetivo es demostrar el consumo de la API de forma segura y proveer una interfaz visual de gestión sin recurrir a frameworks pesados (React, Vue) ni a motores de plantillas acoplados al backend (Blade).
+
+\subsection{Diseño y Estética (Glassmorphism)}
+El requerimiento exigía un diseño moderno y fluido. Se optó por la tendencia \emph{Glassmorphism}, que simula paneles de cristal esmerilado flotando sobre un fondo dinámico o colorido.
+
+\subsubsection{Implementación visual}
+El efecto cristal se logra mediante la propiedad CSS \texttt{backdrop-filter}, que desenfoca el contenido que está \emph{detrás} del elemento, y un fondo con transparencia (\texttt{rgba}):
+\begin{lstlisting}[language=html, caption={Estilo base para los paneles translúcidos}]
+.glass-panel {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    border-radius: 16px;
+    padding: 2rem;
+}
+\end{lstlisting}
+El fondo de la página (\texttt{body}) tiene un gradiente animado que se mueve lentamente para darle vida a la interfaz. Las tipografías provienen de Google Fonts (\emph{Inter} para legibilidad en tablas y \emph{Outfit} para encabezados).
+
+\subsection{Estructura Lógica del Cliente}
+El archivo contiene tres secciones principales:
+\begin{enumerate}
+    \item \textbf{Estructura (HTML):} Define dos grandes contenedores (vistas): el formulario de login (\texttt{\#login-view}) y el panel de administración (\texttt{\#dashboard-view}). También incluye un modal (\texttt{\#crud-modal}) oculto por defecto para la creación y edición de usuarios.
+    \item \textbf{Estilos (CSS):} Contiene variables para la paleta de colores y las reglas para la tabla, botones y animaciones (\texttt{@keyframes}).
+    \item \textbf{Comportamiento (JS):} Un bloque de \emph{Vanilla JavaScript} (sin dependencias como jQuery o Axios) que maneja el ciclo de vida de los datos y las interacciones.
+\end{enumerate}
+
+\subsection{Consumo Seguro de la API REST}
+Toda comunicación usa la función asíncrona \texttt{fetch} nativa del navegador.
+
+\subsubsection{Gestión del Token en el cliente}
+Al cargar la página, el script intenta recuperar un token previo:
+\begin{lstlisting}[language={}, caption={Inicialización del token JWT}]
+const API_URL = '/api/v1';
+let jwtToken = localStorage.getItem('jwt_token') || null;
+\end{lstlisting}
+En el login exitoso, la API responde con el JSON y el script guarda el token:
+\begin{lstlisting}[language={}, caption={Almacenamiento local del token}]
+jwtToken = data.access_token;
+localStorage.setItem('jwt_token', jwtToken);
+\end{lstlisting}
+Para \emph{cualquier} otra petición al servidor, el token se adjunta en los encabezados. Si el servidor responde 401 (token vencido o revocado), el cliente lo borra y vuelve al login:
+\begin{lstlisting}[language={}, caption={Envío del token en la lectura de usuarios}]
+const response = await fetch(`${API_URL}/admin/users`, {
+    method: 'GET',
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${jwtToken}`
+    }
+});
+\end{lstlisting}
+
+\subsubsection{Prevención de XSS en la construcción del DOM}
+Uno de los vectores de ataque más comunes en SPAs es el XSS (Cross-Site Scripting) basado en el DOM. Si un administrador inserta un usuario con el nombre \texttt{<script>alert(1)</script>} y el frontend simplemente concatena ese valor en una cadena HTML con \texttt{innerHTML}, el código malicioso se ejecutará.
+
+El dashboard está protegido contra esto de dos formas:
+\begin{enumerate}
+    \item La API rechaza la entrada si la validación estricta la detecta.
+    \item En la vista, la creación de elementos se hace mediante métodos seguros del DOM (\texttt{document.createElement} y \texttt{textContent}).
+\end{enumerate}
+
+\subsection{Manejo de Errores y Respuesta visual}
+El cliente provee retroalimentación inmediata usando alertas emergentes en la parte superior:
+\begin{lstlisting}[language={}, caption={Función para mostrar mensajes de estado}]
+function showAlert(msg, isError = false) {
+    alertBox.textContent = msg;
+    alertBox.className = isError ? 'alert-error' : 'alert-success';
+    alertBox.style.display = 'block';
+    setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
+}
+\end{lstlisting}
+Cuando falla una petición debido a permisos insuficientes (403), el catch captura el estado y alerta al usuario:
+\begin{lstlisting}[language={}]
+if (response.status === 403) {
+    showAlert('No tienes permiso de Administrador.', true);
+    return;
+}
+\end{lstlisting}
+
+\subsection{Pruebas de la API vía CLI}
+Dado que la API es desacoplada, no depende de este frontend. Puede ser consumida desde una terminal o herramientas como Postman.
+
+\begin{lstlisting}[language=bash, caption={1. Autenticarse e inferir token}]
+export TOKEN=$(curl -s -X POST http://127.0.0.1:8000/api/v1/login \
+  -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{"email":"admin@admin.com","password":"password123"}' | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash, caption={2. Consultar el propio perfil protegido}]
+curl -s http://127.0.0.1:8000/api/v1/user \
+  -H "Authorization: Bearer $TOKEN" -H "Accept: application/json"
+\end{lstlisting}

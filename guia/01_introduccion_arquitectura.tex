@@ -1,0 +1,139 @@
+\section{Objetivo del Caso Práctico}
+El objetivo es desarrollar una aplicación web que implemente autenticación y autorización basada en roles (RBAC), consumiendo una API REST protegida mediante JSON Web Tokens (JWT). Se garantiza que los usuarios accedan a diferentes funcionalidades según su rol, asegurando la confidencialidad e integridad de la información en todo momento.
+
+\textbf{Solución Tecnológica:} Se eligió \textbf{Laravel} (PHP) como motor backend y un frontend desacoplado desarrollado en HTML/CSS/JS (Vanilla).
+
+\subsection{Cómo leer este documento}
+Este documento no solo enumera los requerimientos del caso práctico, sino que explica \textbf{cómo} y \textbf{dónde} se implementó cada uno de ellos dentro del proyecto \texttt{llm-chat}. Para cada requerimiento se presenta:
+\begin{enumerate}
+    \item \textbf{Qué se pidió:} el enunciado del requerimiento.
+    \item \textbf{Dónde está:} el archivo y, cuando aplica, la clase o método del proyecto que lo resuelve.
+    \item \textbf{Cómo funciona:} el fragmento de código real y una explicación paso a paso.
+    \item \textbf{Cómo comprobarlo:} comandos o peticiones HTTP que permiten verificar el comportamiento.
+\end{enumerate}
+
+Al final (capítulo \ref{sec:estado}) se incluye una matriz de cumplimiento y una sección de observaciones honestas sobre qué partes están completamente implementadas, cuáles dependen de la configuración del servidor de producción y cuáles quedaron pendientes.
+
+\subsection{Alcance del proyecto}
+El proyecto \texttt{llm-chat} es el backend de una aplicación de chat con un modelo de lenguaje (LLM). En esta etapa se construyó la \textbf{capa de identidad y control de acceso}, que es la base sobre la cual se montarán las funciones de conversación:
+\begin{itemize}
+    \item Registro e inicio de sesión de usuarios.
+    \item Emisión y validación de tokens JWT.
+    \item Roles y permisos administrables.
+    \item Panel de administración (frontend desacoplado).
+    \item Bitácora de auditoría de acciones.
+\end{itemize}
+Los endpoints de conversaciones y de envío de mensajes al LLM ya están declarados en las rutas y protegidos por autenticación, pero su lógica de negocio devuelve por ahora una respuesta marcada como \emph{(Pendiente)}.
+
+\section{Arquitectura General}
+
+\subsection{Pila tecnológica}
+\begin{longtable}{p{4.2cm}p{10.8cm}}
+\toprule
+\textbf{Componente} & \textbf{Tecnología y función} \\
+\midrule
+\endhead
+Framework backend & Laravel (PHP). Define rutas, middlewares, ORM y validación. Versión declarada en \texttt{composer.json}: \texttt{laravel/framework \^{}12.0}. \\
+Autenticación & Laravel Passport \texttt{\^{}13.8} (servidor OAuth2). Emite tokens de acceso firmados con RSA. \\
+Roles y permisos & Spatie Laravel Permission \texttt{\^{}8.3}. Tablas relacionales para roles, permisos y sus asignaciones. \\
+Base de datos & SQLite en desarrollo (\texttt{database/database.sqlite}); MySQL compatible gracias al ORM Eloquent. \\
+Frontend & HTML, CSS y JavaScript sin frameworks (\texttt{public/admin.html}). \\
+Servidor de desarrollo & \texttt{php artisan serve}. \\
+Documentación & \LaTeX{} (este documento). \\
+\bottomrule
+\end{longtable}
+
+\begin{nota}[Sobre la versión de Laravel]
+Una versión previa de esta guía mencionaba Laravel 11. El archivo \texttt{composer.json} del proyecto declara \texttt{\^{}12.0}, por lo que la versión real instalada es la 12. La estructura que se describe aquí (archivo \texttt{bootstrap/app.php} como punto de configuración de middlewares y rutas) es la misma que introdujo Laravel 11 y se mantiene en la 12.
+\end{nota}
+
+\subsection{Estructura de carpetas relevante}
+La siguiente tabla indica qué archivo del proyecto resuelve cada responsabilidad. Se recomienda tenerla presente al leer los capítulos siguientes.
+
+\begin{longtable}{p{6.4cm}p{8.6cm}}
+\toprule
+\textbf{Archivo} & \textbf{Responsabilidad} \\
+\midrule
+\endhead
+\texttt{bootstrap/app.php} & Registra el prefijo de la API (\texttt{api/v1}), el alias de middleware \texttt{role} y el middleware de auditoría. \\
+\texttt{routes/api.php} & Define todos los endpoints REST y qué middleware protege a cada grupo. \\
+\texttt{routes/web.php} & Solo redirige \texttt{/} y \texttt{/admin} hacia \texttt{admin.html}. No renderiza vistas Blade. \\
+\texttt{app/Http/Controllers/Api/AuthController.php} & Registro, login y logout. \\
+\texttt{app/Http/Controllers/Api/AdminController.php} & CRUD de usuarios, asignación de roles, creación de roles y consulta de auditoría. \\
+\texttt{app/Http/Middleware/RoleMiddleware.php} & Verifica que el usuario autenticado tenga alguno de los roles exigidos; si no, responde 403. \\
+\texttt{app/Http/Middleware/AuditMiddleware.php} & Registra en bitácora cada petición hecha por un usuario autenticado. \\
+\texttt{app/Models/User.php} & Modelo de usuario con los \emph{traits} \texttt{HasApiTokens} (Passport) y \texttt{HasRoles} (Spatie). \\
+\texttt{app/Models/AuditLog.php} & Modelo de la tabla \texttt{audit\_logs}. \\
+\texttt{database/seeders/RolesAndPermissionsSeeder.php} & Crea permisos, roles y dos usuarios de demostración. \\
+\texttt{database/migrations/} & Estructura de tablas (usuarios, Passport, Spatie, auditoría). \\
+\texttt{config/auth.php} & Declara el guard \texttt{api} con driver \texttt{passport}. \\
+\texttt{config/permission.php} & Configuración de Spatie (nombres de tablas, caché). \\
+\texttt{storage/oauth-private.key} / \texttt{oauth-public.key} & Par de claves RSA con las que Passport firma y verifica los tokens. \\
+\texttt{public/admin.html} & Dashboard de administración (cliente de la API). \\
+\bottomrule
+\end{longtable}
+
+\subsection{Prefijo y versionado de la API}
+En \texttt{bootstrap/app.php} se configura \texttt{apiPrefix: 'api/v1'}. Por esa razón, aunque en \texttt{routes/api.php} una ruta se declare como \texttt{/login}, la URL pública real es \texttt{/api/v1/login}. Incluir la versión (\texttt{v1}) en la URL permite publicar en el futuro una \texttt{v2} sin romper a los clientes existentes.
+
+\begin{lstlisting}[caption={Configuración de rutas y middlewares en bootstrap/app.php}]
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        apiPrefix: 'api/v1',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
+        ]);
+
+        $middleware->api(append: [
+            \App\Http\Middleware\AuditMiddleware::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        //
+    })->create();
+\end{lstlisting}
+
+Puntos clave de este archivo:
+\begin{itemize}
+    \item \texttt{alias(['role' => ...])}: crea la palabra clave \texttt{role} que luego se usa en las rutas como \texttt{middleware('role:Administrador')}.
+    \item \texttt{api(append: [...])}: agrega el \texttt{AuditMiddleware} al final del grupo de middlewares \texttt{api}, es decir, se ejecuta en toda ruta de \texttt{routes/api.php}.
+    \item \texttt{health: '/up'}: expone un endpoint de salud que sirve para comprobar que la aplicación responde.
+\end{itemize}
+
+\subsection{Flujo completo de una petición protegida}
+El siguiente esquema muestra, en orden, lo que ocurre cuando el dashboard solicita la lista de usuarios (\texttt{GET /api/v1/admin/users}):
+
+\begin{lstlisting}[language={}, caption={Ciclo de vida de una petición protegida}]
+ Navegador (admin.html)
+   |  GET /api/v1/admin/users
+   |  Authorization: Bearer <JWT>
+   v
+ [1] public/index.php  -> arranca Laravel
+ [2] Prefijo api/v1    -> se selecciona routes/api.php
+ [3] Middleware del grupo "api" (incluye AuditMiddleware)
+ [4] auth:api          -> Passport valida firma RS256, expiracion
+                          y que el token no este revocado
+ [5] role:Administrador-> RoleMiddleware consulta a Spatie
+        |-- sin rol  -> 403 {"message":"Forbidden - ..."}
+        v
+ [6] AdminController@listUsers -> User::with('roles')->get()
+   |
+   v
+ Respuesta JSON 200  (lista de usuarios con sus roles)
+\end{lstlisting}
+
+Si en el paso [4] el token es inválido, está vencido o fue revocado, Laravel responde \textbf{401 Unauthorized} y la petición nunca llega al controlador. Si el token es válido pero el rol es insuficiente, el paso [5] responde \textbf{403 Forbidden}. La diferencia entre 401 (\emph{no sé quién eres}) y 403 (\emph{sé quién eres, pero no puedes hacer esto}) es fundamental en el diseño de APIs seguras.
+
+\subsection{Principio de arquitectura desacoplada}
+El backend no genera HTML. Todo lo que el dashboard muestra proviene de respuestas JSON. Esto trae tres ventajas directas para la seguridad:
+\begin{enumerate}
+    \item \textbf{Superficie de ataque reducida:} no hay plantillas del servidor que puedan inyectar contenido sin escapar.
+    \item \textbf{Sin estado de sesión en el servidor:} cada petición lleva su propia credencial (el token), por lo que no existe una cookie de sesión que pueda ser robada mediante CSRF.
+    \item \textbf{Reemplazabilidad del cliente:} el mismo backend puede servir a una app móvil o a otro frontend sin cambios. De hecho, el comentario de \texttt{routes/api.php} indica que las rutas públicas de autenticación fueron pensadas para una aplicación móvil además del dashboard web.
+\end{enumerate}

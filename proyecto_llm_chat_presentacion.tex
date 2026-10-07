@@ -1,0 +1,248 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{fancyhdr}
+\usepackage[most]{tcolorbox}
+
+\geometry{a4paper, margin=1in}
+\setlength{\parskip}{0.6em}
+\setlength{\parindent}{0pt}
+\setlength{\headheight}{16pt}
+\renewcommand{\arraystretch}{1.25}
+
+\hypersetup{colorlinks=true, linkcolor=indigo!80!black, urlcolor=indigo!80!black}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Universidad Autónoma de Chiapas}
+\fancyhead[R]{\small Proyecto LLM Chat -- SaaS Multi-Tenant \& Kotlin}
+\fancyfoot[C]{\thepage}
+
+\definecolor{indigo}{rgb}{0.29, 0.0, 0.51}
+\definecolor{lightgray}{rgb}{0.96, 0.96, 0.97}
+\definecolor{commentgreen}{rgb}{0.1, 0.5, 0.2}
+\definecolor{keywordblue}{rgb}{0.0, 0.2, 0.7}
+
+\lstset{
+    backgroundcolor=\color{lightgray},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    commentstyle=\color{commentgreen},
+    keywordstyle=\color{keywordblue},
+    language=PHP,
+    showstringspaces=false,
+    captionpos=b,
+    literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+             {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+             {ñ}{{\~n}}1 {Ñ}{{\~N}}1
+}
+
+\newtcolorbox{resumenbox}[1][Resumen]{colback=indigo!5, colframe=indigo!70!black, fonttitle=\bfseries, title=#1, breakable}
+\newtcolorbox{alerta}[1][Atención]{colback=red!5, colframe=red!70!black, fonttitle=\bfseries, title=#1, breakable}
+
+\title{\Huge \textbf{Proyecto LLM Chat} \\ \vspace{0.4cm} \Large Plataforma SaaS Multi-Tenant, Arquitectura Laravel 11, Base de Datos MySQL, IA n8n en Docker y Conexión con App Android en Kotlin}
+\author{\textbf{Ingeniería en Desarrollo de Software} \\ Universidad Autónoma de Chiapas}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+
+\begin{resumenbox}[Presentación Ejecutiva del Proyecto]
+El \textbf{Proyecto LLM Chat} es una solución tecnológica avanzada bajo el modelo \textbf{SaaS Multi-Tenant} (Software as a Service) diseñada para la publicación y gestión inteligente de catálogos digitales de productos y precios. Cada empresa registrada posee un espacio aislado (\emph{tenant}) y un código QR único. Los clientes pueden consultar la información escaneando el código QR o desde una aplicación móvil nativa en \textbf{Kotlin} que se comunica mediante una API REST en \textbf{Laravel} e integra un filtro inteligente respaldado por \textbf{n8n en Docker}.
+\end{resumenbox}
+
+\tableofcontents
+\newpage
+
+\section{1. Objetivo General y Flujo de la Plataforma}
+
+El objetivo general es proveer una infraestructura centralizada en la nube que permita:
+\begin{enumerate}
+    \item \textbf{Administración General (SaaS Operator):} Gestionar empresas clientes, planes de suscripción, usuarios y auditoría global.
+    \item \textbf{Gestión Empresarial (Tenants):} Permitir a cada empresa dar de alta productos, categorías, establecer precios y obtener su código QR exclusivo.
+    \item \textbf{Consulta de Clientes Móviles:} Permitir que los clientes escaneen el código QR o utilicen una App Android en Kotlin para acceder al catálogo actualizado en tiempo real sin requerir registro obligatorio.
+\end{enumerate}
+
+\begin{center}
+\begin{tabular}{lp{6cm}p{5.5cm}}
+\toprule
+\textbf{Actor / Capa} & \textbf{Componente} & \textbf{Acción Principal} \\
+\midrule
+\textbf{Operador SaaS} & Panel Administrador General & Alta de empresas, planes y logs de auditoría. \\
+\textbf{Empresas} & Panel Multi-Tenant (\texttt{company\_id}) & Alta de catálogo, precios y código QR. \\
+\textbf{Clientes / App} & Android App Kotlin / Escáner QR & Lectura de catálogo e IA inteligente. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\newpage
+\section{2. Jerarquía de Roles y Control de Acceso (RBAC)}
+
+La seguridad del sistema está respaldada por una jerarquía estricta de tres roles:
+
+\begin{center}
+\begin{tabular}{lp{4.5cm}p{7cm}}
+\toprule
+\textbf{Rol} & \textbf{Jerarquía} & \textbf{Reglas de Acceso} \\
+\midrule
+\texttt{admin} & Nivel 1 (Máximo) & Acceso total a empresas, usuarios, logs e integraciones globales. \\
+\texttt{empresa} & Nivel 2 (Corporativo) & Gestión exclusiva de los productos y precios vinculados a su propia empresa. Datos aislados de otros tenants. \\
+\texttt{cliente} & Nivel 3 (Público/Mobile) & Registro público predeterminado desde la App Android. Acceso a lectura del catálogo y consultas al asistente LLM. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{alerta}[Seguridad en Registro Público]
+Cualquier registro de usuario realizado desde la interfaz pública o desde la App Android asigna \textbf{exclusiva y obligatoriamente} el rol \texttt{cliente}, evitando elevaciones de privilegio no autorizadas.
+\end{alerta}
+
+\newpage
+\section{3. Modelo de Datos y Diagrama ER de Tablas MySQL}
+
+La base de datos relacional se gestiona en \textbf{MySQL 8.0} con aislamiento por \texttt{company\_id}:
+
+\begin{lstlisting}[language=SQL, caption={Esquema SQL de las tablas principales}]
+-- 1. Tabla de Empresas (Tenants)
+CREATE TABLE companies (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(50) NULL,
+    plan ENUM('Basico', 'Plus', 'Premium') DEFAULT 'Basico',
+    status ENUM('Activo', 'Inactivo') DEFAULT 'Activo',
+    created_at TIMESTAMP, updated_at TIMESTAMP
+);
+
+-- 2. Tabla de Usuarios vinculados a Tenant
+CREATE TABLE users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'empresa', 'cliente') DEFAULT 'cliente',
+    company_id BIGINT NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
+);
+
+-- 3. Tabla de Productos por Empresa
+CREATE TABLE products (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT NOT NULL,
+    category_id BIGINT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+-- 4. Bitacora Inmutable de Auditoria
+CREATE TABLE audit_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NULL,
+    action VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) NULL,
+    details TEXT NULL,
+    created_at TIMESTAMP, updated_at TIMESTAMP
+);
+\end{lstlisting}
+
+\newpage
+\section{4. Automatización e IA con n8n en Docker}
+
+Para procesar búsquedas semánticas e inteligentes sobre los catálogos de los clientes, se utiliza un motor **n8n** ejecutado en un contenedor **Docker**.
+
+\begin{lstlisting}[language={}, caption={Configuración docker-compose.yml}]
+version: '3.8'
+services:
+  app:
+    build: .
+    ports: ["8000:8000"]
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    ports: ["5678:5678"]
+    environment:
+      - N8N_HOST=n8n
+  db:
+    image: mysql:8.0
+    ports: ["3306:3306"]
+\end{lstlisting}
+
+\textbf{Flujo del Filtro Inteligente:}
+1. La App Android envía una consulta a \texttt{POST /api/v1/n8n/smart-filter}.
+2. Laravel reenvía los productos del tenant al webhook de n8n en Docker (\texttt{http://n8n:5678/webhook/smart-filter}).
+3. n8n procesa la consulta con nodos de IA y devuelve los productos más relevantes.
+
+\newpage
+\section{5. Conexión de la App Móvil Android (Kotlin) con Laravel API}
+
+La aplicación nativa Android escrita en **Kotlin** se conecta a las APIs REST de Laravel utilizando **Retrofit** y **Corrutinas**.
+
+\subsection{1. Definición de la API en Kotlin}
+\begin{lstlisting}[language={}, caption={CatalogApiService.kt en Kotlin}]
+package com.llmchat.app.data.api
+
+import retrofit2.Response
+import retrofit2.http.GET
+import retrofit2.http.Path
+import retrofit2.http.POST
+import retrofit2.http.Body
+
+interface CatalogApiService {
+    // Escaneo de QR o consulta de catalogo por Slug
+    @GET("api/v1/catalogo/{slug}")
+    suspend fun getCatalogBySlug(
+        @Path("slug") slug: String
+    ): Response<CatalogResponse>
+
+    // Filtro Inteligente respaldado por n8n
+    @POST("api/v1/n8n/smart-filter")
+    suspend fun filterCatalog(
+        @Body request: SmartFilterRequest
+    ): Response<SmartFilterResponse>
+}
+\end{lstlisting}
+
+\subsection{2. Extracción del QR en Kotlin}
+\begin{lstlisting}[language={}, caption={QrParserUtil.kt}]
+object QrParserUtil {
+    fun extractSlugFromQr(qrUrl: String): String {
+        return qrUrl.trim().substringAfterLast("/q/").trimEnd('/')
+    }
+}
+\end{lstlisting}
+
+\newpage
+\section{6. Resumen de Tecnologías y Conclusión}
+
+\begin{longtable}{p{3.5cm}p{4.5cm}p{7.5cm}}
+\toprule
+\textbf{Tecnología} & \textbf{Componente} & \textbf{Función Principal} \\
+\midrule
+\endhead
+\textbf{Laravel 11} & Backend REST API \& Blade & Servidor principal, APIs JSON, middleware de roles e interfaz Blade. \\
+\textbf{MySQL 8.0} & Base de Datos & Almacenamiento de empresas, productos, categorías y auditoría. \\
+\textbf{n8n (Docker)} & Motor de Automatización & Filtros inteligentes e inteligencia artificial en contenedor. \\
+\textbf{Kotlin (Android)} & App Nativa Móvil & Lectura de código QR y consumo de APIs REST. \\
+\textbf{Tailwind CSS} & Diseño Web & Interfaz moderna con tema oscuro y contadores de sesión en tiempo real. \\
+\bottomrule
+\end{longtable}
+
+\begin{resumenbox}[Conclusión]
+La plataforma **LLM Chat** combina la solidez de Laravel 11 y MySQL con la flexibilidad de n8n en Docker y la potencia de Kotlin en Android, ofreciendo un SaaS multi-tenant completo, seguro y escalable.
+\end{resumenbox}
+
+\end{document}

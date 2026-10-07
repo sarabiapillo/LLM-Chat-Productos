@@ -1,0 +1,343 @@
+\section{Requerimientos de Seguridad Computacional}
+Este capítulo describe cada medida de seguridad solicitada, \textbf{dónde} se encuentra en el proyecto, \textbf{cómo} funciona y \textbf{cómo verificarla}. Cuando una medida depende de la configuración del servidor de producción (y no del código del repositorio) se indica de forma explícita.
+
+\subsection{1. Cifrado de contraseñas}
+Se utilizó el algoritmo \textbf{Bcrypt} con \textit{salt} autogenerado utilizando el \textit{Facade} \texttt{Hash::make(\$password)} de Laravel. Ninguna contraseña es reversible ni se almacena en texto plano.
+
+\subsubsection{Dónde se aplica}
+\begin{itemize}
+    \item \texttt{AuthController::register}: \texttt{'password' => Hash::make(\$request->password)}.
+    \item \texttt{AdminController::createUser}: igual, al crear un usuario desde el panel.
+    \item \texttt{RolesAndPermissionsSeeder}: las cuentas de demostración se crean con \texttt{Hash::make}.
+    \item \texttt{User::casts()}: el \emph{cast} \texttt{'password' => 'hashed'} actúa como red de seguridad adicional.
+    \item \texttt{AuthController::login}: la verificación se realiza con \texttt{Hash::check}, nunca comparando textos.
+\end{itemize}
+
+\subsubsection{Cómo funciona Bcrypt}
+\begin{enumerate}
+    \item Se genera un \textbf{salt} aleatorio de 16 bytes para cada contraseña. Dos usuarios con la misma contraseña obtienen hashes completamente distintos, lo que anula las \emph{rainbow tables}.
+    \item Se aplica el algoritmo con un \textbf{factor de costo} (por defecto 12 en Laravel, es decir $2^{12}$ iteraciones), que lo hace deliberadamente lento y encarece los ataques de fuerza bruta contra una base filtrada.
+    \item El resultado ocupa 60 caracteres y contiene versión, costo, salt y hash en un solo texto.
+\end{enumerate}
+
+\begin{lstlisting}[language={}, caption={Anatomía de un hash Bcrypt almacenado en la columna password}]
+$2y$12$Kq3b8vYw1a1k7mQe0XJmUOe9d2zq6o3b0wV3k0rC0fQ0k9c2m1u5S
+ |   |  |                      |
+ |   |  |                      '-- hash resultante (31 caracteres)
+ |   |  '------------------------- salt aleatorio (22 caracteres)
+ |   '---------------------------- costo (2^12 iteraciones)
+ '-------------------------------- version del algoritmo
+\end{lstlisting}
+
+\subsubsection{Verificación}
+\begin{lstlisting}[language=bash, caption={Comprobar que la base no contiene contraseñas en claro}]
+sqlite3 database/database.sqlite "select email, substr(password,1,7) from users;"
+# admin@admin.com|$2y$12$
+# editor@editor.com|$2y$12$
+\end{lstlisting}
+El prefijo \texttt{\$2y\$} confirma que son hashes Bcrypt. Además, la contraseña mínima de 8 caracteres exigida en el registro reduce el riesgo de contraseñas triviales.
+
+\subsection{2. Comunicación Cifrada (HTTPS/TLS)}
+Se estableció en las directivas de despliegue que todo el tráfico se forzará por HTTPS. La API interceptará el protocolo para evitar secuestros de sesión (Man-in-the-Middle).
+
+\subsubsection{Por qué es indispensable}
+El token JWT viaja en el encabezado \texttt{Authorization}. Si la comunicación fuera HTTP, cualquier equipo entre el cliente y el servidor (por ejemplo, una red WiFi pública) podría leer el token y usarlo para suplantar al usuario mientras no expire. TLS cifra todo el canal: contraseñas del login, tokens y respuestas JSON.
+
+\subsubsection{Cómo se implementa en producción}
+HTTPS se termina normalmente en el servidor web (Nginx o Apache) con un certificado, por ejemplo de Let's Encrypt. Configuración típica con Nginx:
+
+\begin{lstlisting}[language={}, caption={Ejemplo de configuración Nginx: redirección a HTTPS y HSTS}]
+server {
+    listen 80;
+    server_name ejemplo.com;
+    return 301 https://$host$request_uri;      # fuerza HTTPS
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ejemplo.com;
+
+    ssl_certificate     /etc/letsencrypt/live/ejemplo.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ejemplo.com/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    root /var/www/llm-chat/public;
+    index index.php;
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+}
+\end{lstlisting}
+
+Del lado de la aplicación, Laravel puede forzar que todas las URLs generadas usen el esquema seguro. Se hace en \texttt{AppServiceProvider::boot()}:
+\begin{lstlisting}[caption={Forzar esquema https en producción (a agregar en AppServiceProvider::boot)}]
+use Illuminate\Support\Facades\URL;
+
+public function boot(): void
+{
+    if (app()->environment('production')) {
+        URL::forceScheme('https');
+    }
+}
+\end{lstlisting}
+
+\begin{aviso}[Estado en el repositorio]
+El código actual no incluye aún esa línea ni un archivo de configuración del servidor; el servidor de desarrollo (\texttt{php artisan serve}) trabaja sobre HTTP en \texttt{127.0.0.1:8000}, lo cual es aceptable únicamente en un entorno local. La medida se cumple al desplegar con la configuración de ejemplo anterior. Ver recomendaciones en el capítulo \ref{sec:estado}.
+\end{aviso}
+
+\subsection{3. Gestión segura de tokens JWT}
+\begin{itemize}
+    \item \textbf{Expiración:} Originalmente se configuró un tiempo corto. Posteriormente se ajustó para propósitos de evaluación.
+    \item \textbf{Firma:} El token es firmado internamente usando claves RSA (RS256) generadas con el comando \texttt{passport:keys}. Dichas claves (\texttt{oauth-private.key}) tienen permisos estrictos \texttt{600} y no se almacenan en el control de versiones.
+\end{itemize}
+
+\subsubsection{Expiración}
+La vigencia se fija en el login:
+\begin{lstlisting}[caption={Establecer la expiración a 12 horas (AuthController::login)}]
+$tokenResult = $user->createToken('Personal Access Token');
+$token = $tokenResult->token;
+// Extendemos el tiempo de expiración para que no caduque rápido
+$token->expires_at = now()->addMinutes(720); // 12 horas
+$token->save();
+\end{lstlisting}
+Un token de vida corta limita el daño si es robado. El valor de 12 horas se eligió para comodidad durante la evaluación del proyecto (el dashboard no necesita reautenticarse constantemente); en un entorno productivo se recomienda reducirlo (15 a 60 minutos) y usar tokens de refresco.
+
+\subsubsection{Firma y permisos de las claves}
+\begin{lstlisting}[language=bash, caption={Estado verificado de las claves en el servidor}]
+$ ls -l storage/oauth-*.key
+-rw------- 1 www-data www-data 3322 Oct  5 02:09 storage/oauth-private.key
+-rw------- 1 www-data www-data  812 Oct  5 02:09 storage/oauth-public.key
+
+$ grep key .gitignore
+/storage/*.key
+\end{lstlisting}
+Interpretación de \texttt{-rw-------}: el propietario (\texttt{www-data}, el usuario del servidor web) tiene lectura y escritura; el grupo y los demás usuarios del sistema no tienen ningún acceso. La clave privada de 3322 bytes corresponde a una clave RSA de 4096 bits.
+
+\subsubsection{Revocación}
+Además de la expiración, los tokens pueden cancelarse antes de tiempo. El logout lo hace con \texttt{\$request->user()->token()->revoke()}. Con esto se evita que un token ``olvidado'' siga siendo válido horas después de que el usuario cerró sesión.
+
+\subsubsection{Almacenamiento del token en el cliente}
+El dashboard guarda el token en \texttt{localStorage} (\texttt{jwt\_token}) y lo elimina al cerrar sesión o al recibir un 401. Es un compromiso habitual en SPAs. Su riesgo principal es que un ataque XSS podría leerlo, por lo que la protección contra XSS (siguiente secciones) es especialmente importante. Una alternativa más robusta sería una cookie \texttt{HttpOnly; Secure; SameSite=Strict}.
+
+\subsection{4. Autorización verificada en el servidor}
+Independientemente de que el frontend oculte visualmente botones mediante CSS/JS, la seguridad principal recae en el servidor mediante los Middlewares \texttt{role} y \texttt{permission}.
+
+\subsubsection{El principio}
+\textbf{Nunca se confía en el cliente.} Ocultar un botón en la interfaz es una comodidad de usabilidad, no un control de seguridad: cualquier persona puede abrir las herramientas del navegador, o usar \texttt{curl}, y enviar la petición directamente. Por eso cada ruta sensible valida el rol en el servidor, con información de la base de datos.
+
+\subsubsection{Implementación}
+\begin{itemize}
+    \item \texttt{role}: alias de \texttt{RoleMiddleware} registrado en \texttt{bootstrap/app.php}. Es el que usan hoy todas las rutas \texttt{/admin/*}.
+    \item \texttt{permission}: el paquete Spatie incluye su propio middleware de permisos. Como los permisos (\emph{Lectura, Escritura, Eliminación}) ya están cargados en las tablas, puede aplicarse a rutas concretas cuando las funciones de negocio (conversaciones, edición de contenido) se implementen. Para habilitarlo basta registrar el alias en \texttt{bootstrap/app.php}:
+\end{itemize}
+\begin{lstlisting}[caption={Registro del alias permission de Spatie (extensión prevista)}]
+$middleware->alias([
+    'role'       => \App\Http\Middleware\RoleMiddleware::class,
+    'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+]);
+
+// Uso en rutas:
+Route::delete('/contenido/{id}', ...)->middleware('permission:Eliminacion');
+\end{lstlisting}
+
+\subsubsection{Prueba de que el ocultamiento visual no basta}
+Aunque el frontend no muestre el panel a un usuario regular, si este conoce la URL e intenta la llamada, el servidor lo detiene:
+\begin{lstlisting}[language=bash]
+curl -i -X DELETE http://127.0.0.1:8000/api/v1/admin/users/1 \
+  -H "Authorization: Bearer $TOKEN_DE_UN_NO_ADMIN" -H "Accept: application/json"
+# HTTP/1.1 403 Forbidden
+# {"message":"Forbidden - Insufficient permissions"}
+\end{lstlisting}
+
+\subsection{5. Validación y Sanitización de Entradas}
+Laravel protege contra Inyección SQL mediante sentencias preparadas de PDO en su ORM. Para ataques XSS y validaciones masivas, se usó \texttt{\$request->validate()} para sanear tipos de datos en todos los Controladores.
+
+\subsubsection{Reglas aplicadas por endpoint}
+\begin{longtable}{p{4.2cm}p{10.8cm}}
+\toprule
+\textbf{Endpoint} & \textbf{Reglas de validación} \\
+\midrule
+\endhead
+\texttt{register} & \texttt{name: required|string|max:255}; \texttt{email: required|email|unique:users}; \texttt{password: required|min:8}. \\
+\texttt{login} & \texttt{email: required|email}; \texttt{password: required}. \\
+\texttt{admin/users} (POST) & Nombre, correo único, contraseña \texttt{min:8}, \texttt{role: exists:roles,name}. \\
+\texttt{admin/users/\{id\}} (PUT) & Campos opcionales (\texttt{sometimes}); correo único salvo el propio; rol existente. \\
+\texttt{admin/users/\{id\}/role} & \texttt{role: required|string|exists:roles,name}. \\
+\texttt{admin/roles} & \texttt{name: unique:roles,name}; \texttt{permissions.*: exists:permissions,name}. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Defensas combinadas}
+\begin{enumerate}
+    \item \textbf{Inyección SQL:} sentencias preparadas (ver capítulo anterior). Las reglas \texttt{exists} y \texttt{unique} también se ejecutan con parámetros enlazados.
+    \item \textbf{Asignación masiva (\textit{mass assignment}):} \texttt{\$fillable} en \texttt{User} y \texttt{AuditLog}. Aunque un atacante agregue campos adicionales al JSON (por ejemplo \texttt{is\_admin: true}), Eloquent los ignorará. En \texttt{updateUser} se usa explícitamente \texttt{\$request->only(['name','email'])}.
+    \item \textbf{Escalada de privilegios por registro:} el registro público siempre asigna \texttt{Usuario Regular}; el rol no se toma de la petición.
+    \item \textbf{XSS:} el backend devuelve datos como JSON (\texttt{application/json}), no HTML, por lo que el navegador no los ejecuta como código. En el cliente, la tabla del dashboard se construye con \texttt{createElement} y asignación de texto (ver capítulo \ref{sec:frontend}); esta práctica evita interpretar HTML malicioso contenido, por ejemplo, en el nombre de un usuario.
+\end{enumerate}
+
+\subsubsection{Ejemplo de rechazo por validación}
+\begin{lstlisting}[language=bash]
+curl -i -X POST http://127.0.0.1:8000/api/v1/register \
+  -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{"name":"X","email":"no-es-correo","password":"123"}'
+\end{lstlisting}
+\begin{lstlisting}[language={}, caption={Respuesta 422}]
+{
+  "message": "The email field must be a valid email address. (and 1 more error)",
+  "errors": {
+    "email":    ["The email field must be a valid email address."],
+    "password": ["The password field must be at least 8 characters."]
+  }
+}
+\end{lstlisting}
+
+\subsection{6. Protección contra ataques de fuerza bruta}
+Se protegió el endpoint \texttt{/login} con el middleware \texttt{throttle:5,1}. Si un atacante falla la contraseña más de 5 veces en un minuto, recibe un código \textbf{429 Too Many Requests}.
+
+\subsubsection{Dónde está}
+\begin{lstlisting}[caption={routes/api.php}]
+Route::post('/login', [AuthController::class, 'login'])
+    ->middleware('throttle:5,1'); // Limit to 5 requests per minute against brute force
+\end{lstlisting}
+
+\subsubsection{Cómo funciona}
+\texttt{throttle:5,1} significa \emph{5 intentos cada 1 minuto}. Laravel identifica al solicitante (por IP, o por usuario si está autenticado), cuenta sus peticiones en la caché (en este proyecto el almacén \texttt{cache} configurado en la tabla de base de datos) y, al exceder el límite, responde 429 con el encabezado \texttt{Retry-After} que indica cuántos segundos esperar. Un ataque de diccionario que podría probar miles de contraseñas por minuto queda reducido a cinco.
+
+\subsubsection{Combinación con otras defensas}
+El límite se complementa con (a) el mensaje de error único del login, que evita enumerar usuarios; (b) el costo de Bcrypt, que hace caro cada intento y (c) el registro de auditoría de cada inicio de sesión exitoso, que permite detectar accesos extraños.
+
+\begin{lstlisting}[language=bash, caption={Demostración: el sexto intento es bloqueado}]
+for i in 1 2 3 4 5 6; do
+  curl -s -o /dev/null -w "intento $i -> %{http_code}\n" \
+    -X POST http://127.0.0.1:8000/api/v1/login \
+    -H "Accept: application/json" -H "Content-Type: application/json" \
+    -d '{"email":"admin@admin.com","password":"incorrecta"}'
+done
+# intento 1 -> 401 ... intento 5 -> 401
+# intento 6 -> 429
+\end{lstlisting}
+
+\subsection{7. Registro de auditoría con trazabilidad}
+El modelo \texttt{AuditLog} guarda el \texttt{user\_id}, \texttt{ip\_address}, \texttt{action} y \texttt{timestamp}. Estos registros solo pueden insertarse mediante lógica en el backend y no pueden ser alterados por nadie, manteniendo su peso legal y confidencial.
+
+\subsubsection{Qué eventos quedan registrados}
+\begin{longtable}{p{4.5cm}p{4.2cm}p{6.3cm}}
+\toprule
+\textbf{Evento} & \textbf{Acción registrada} & \textbf{Origen} \\
+\midrule
+\endhead
+Registro de usuario & \emph{Registro de usuario} & \texttt{AuthController::register} \\
+Inicio de sesión exitoso & \emph{Inicio de sesión} & \texttt{AuthController::login} \\
+Cierre de sesión & \emph{Cierre de sesión} & \texttt{AuthController::logout} \\
+Crear / editar / eliminar usuario & \emph{Crear Usuario}, \emph{Actualizar Usuario}, \emph{Eliminar Usuario} & \texttt{AdminController} \\
+Asignar rol / crear rol & \emph{Asignar Rol}, \emph{Crear Rol} & \texttt{AdminController} \\
+Cualquier petición autenticada & Método y ruta (p. ej. \emph{GET api/v1/admin/users}) & \texttt{AuditMiddleware} \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Cómo consultar la bitácora}
+\begin{lstlisting}[language=bash]
+curl -s http://127.0.0.1:8000/api/v1/admin/audit-logs \
+  -H "Authorization: Bearer $TOKEN_ADMIN" -H "Accept: application/json"
+\end{lstlisting}
+\begin{lstlisting}[language={}, caption={Ejemplo de registros devueltos}]
+[
+  {"id": 12, "user_id": 1, "action": "GET api/v1/admin/users",
+   "ip_address": "127.0.0.1", "details": "[]",
+   "created_at": "2026-10-05T23:10:41.000000Z"},
+  {"id": 11, "user_id": 1, "action": "Inicio de sesión",
+   "ip_address": "127.0.0.1", "details": "Inicio de sesión exitoso",
+   "created_at": "2026-10-05T23:10:38.000000Z"}
+]
+\end{lstlisting}
+Los registros se devuelven ordenados del más reciente al más antiguo gracias a \texttt{AuditLog::latest()}.
+
+\subsubsection{Sobre la inmutabilidad y la confidencialidad}
+\begin{itemize}
+    \item \textbf{Inmutabilidad a nivel de aplicación:} no existe ninguna ruta, controlador ni método del código que actualice o elimine filas de \texttt{audit\_logs}. Solo se inserta y se lee.
+    \item \textbf{Confidencialidad:} la lectura está restringida al rol \texttt{Administrador}; un Editor o un Usuario Regular reciben 403.
+    \item \textbf{Datos sensibles:} el middleware elimina \texttt{password} y \texttt{password\_confirmation} antes de guardar el cuerpo de la petición.
+    \item \textbf{Conservación histórica:} la llave foránea con \texttt{nullOnDelete} mantiene los registros de un usuario aunque su cuenta sea borrada.
+\end{itemize}
+
+\subsection{8. Manejo seguro de CORS}
+El archivo \texttt{config/cors.php} restringe qué orígenes pueden consumir la API, previniendo que scripts maliciosos alojados en otros dominios roben la sesión o datos.
+
+\subsubsection{Qué es CORS}
+Los navegadores aplican la \emph{política del mismo origen}: una página en \texttt{https://sitio-malo.com} no puede leer la respuesta de una petición a \texttt{https://api.ejemplo.com} a menos que el servidor lo autorice con encabezados \texttt{Access-Control-Allow-Origin}. CORS (\emph{Cross-Origin Resource Sharing}) es el mecanismo para otorgar esas autorizaciones de manera controlada.
+
+\subsubsection{Configuración}
+Laravel incluye el middleware \texttt{HandleCors}, que lee la configuración de \texttt{config/cors.php}. Una configuración restrictiva sería:
+\begin{lstlisting}[caption={config/cors.php (configuración restrictiva recomendada)}]
+return [
+    'paths' => ['api/*'],
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    'allowed_origins' => ['https://ejemplo.com'],   // solo el frontend legitimo
+    'allowed_origins_patterns' => [],
+    'allowed_headers' => ['Authorization', 'Content-Type', 'Accept'],
+    'exposed_headers' => [],
+    'max_age' => 0,
+    'supports_credentials' => false,
+];
+\end{lstlisting}
+Se publica con \texttt{php artisan config:publish cors}.
+
+\begin{aviso}[Estado en el repositorio]
+En el árbol actual \textbf{no existe} el archivo \texttt{config/cors.php}; Laravel usa entonces su configuración predeterminada, que permite cualquier origen en las rutas \texttt{api/*}. Como el dashboard se sirve desde el \emph{mismo} dominio que la API, funciona sin necesidad de CORS, pero la restricción descrita arriba aún debe publicarse y fijarse a los dominios reales antes del despliegue. La política más segura combina esto con que el token viaja en un encabezado (no en una cookie), lo que ya impide el abuso por CSRF.
+\end{aviso}
+
+\subsection{9. Principio de Mínimo Privilegio}
+Un editor no puede ver la tabla de usuarios. Un usuario no puede borrar contenido. Esto se logró definiendo reglas atómicas en Spatie y limitando los accesos a lo que estrictamente requiere cada función.
+
+\subsubsection{Cómo se aplica en el proyecto}
+\begin{enumerate}
+    \item \textbf{Rol por defecto mínimo.} Todo registro nuevo es \texttt{Usuario Regular} (solo \emph{Lectura}).
+    \item \textbf{Permisos atómicos.} Lectura, Escritura y Eliminación son permisos separados; cada rol recibe únicamente los necesarios.
+    \item \textbf{Rutas de administración exclusivas.} Las siete rutas \texttt{/admin/*} requieren el rol \texttt{Administrador}. El Editor no puede ver usuarios ni la bitácora.
+    \item \textbf{Un solo rol por usuario administrado.} \texttt{syncRoles} evita acumular privilegios de forma accidental.
+    \item \textbf{Protección contra autoeliminación.} El administrador no puede borrar su propia cuenta.
+    \item \textbf{Respuesta mínima.} Los campos \texttt{password} y \texttt{remember\_token} están en \texttt{\$hidden}, así que nunca se exponen en el JSON de usuarios.
+\end{enumerate}
+
+\subsubsection{Comparación de capacidades por rol}
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Acción} & \textbf{Usuario Regular} & \textbf{Editor} & \textbf{Administrador} \\
+\midrule
+Iniciar sesión y ver su perfil & Sí & Sí & Sí \\
+Listar usuarios & No (403) & No (403) & Sí \\
+Crear/editar/eliminar usuarios & No (403) & No (403) & Sí \\
+Asignar roles y crear roles & No (403) & No (403) & Sí \\
+Consultar bitácora de auditoría & No (403) & No (403) & Sí \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{10. Manejo de errores sin fuga de información}
+Se configuró el entorno \texttt{APP\_ENV=production} y \texttt{APP\_DEBUG=false}. En caso de que falle la base de datos o el código, el usuario no verá trazas de pila (Stack Traces) ni configuraciones internas; solo recibirá un error \textbf{HTTP 500} genérico.
+
+\subsubsection{Por qué importa}
+Con \texttt{APP\_DEBUG=true}, Laravel muestra páginas de error detalladas que incluyen rutas de archivos del servidor, fragmentos de código, consultas SQL y valores del entorno. Para un atacante, esa información es un mapa del sistema. En producción solo debe verse un mensaje genérico mientras el detalle se guarda en \texttt{storage/logs/laravel.log}, accesible solo al personal técnico.
+
+\subsubsection{Configuración requerida en el archivo .env de producción}
+\begin{lstlisting}[language={}, caption={.env de producción (no versionado)}]
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://ejemplo.com
+LOG_LEVEL=warning
+\end{lstlisting}
+Tras cambiarlo conviene ejecutar \texttt{php artisan config:cache} para que Laravel use la configuración ya compilada.
+
+\begin{aviso}[Estado actual del entorno de desarrollo]
+El archivo \texttt{.env} de este equipo de desarrollo tiene \texttt{APP\_ENV=local} y \texttt{APP\_DEBUG=true}, lo cual es correcto para programar y depurar. La directiva \texttt{production/false} aplica al despliegue final y debe verificarse antes de publicar. El archivo \texttt{.env} está excluido del control de versiones (\texttt{.gitignore}), por lo que ningún secreto se sube al repositorio.
+\end{aviso}
+
+\subsubsection{Comportamiento esperado}
+\begin{lstlisting}[language={}, caption={Respuesta de error en producción}]
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+
+{"message": "Server Error"}
+\end{lstlisting}
+Los errores 401, 403, 404, 422 y 429 descritos antes son errores \emph{esperados} y usan mensajes breves y controlados que no revelan detalles internos.

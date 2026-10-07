@@ -194,6 +194,50 @@
             color: var(--text-muted);
             line-height: 1.6;
         }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease-out;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            position: relative;
+            animation: fadeIn 0.4s ease-out;
+        }
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0;
+            box-shadow: none;
+        }
+        .close-modal:hover {
+            color: var(--text-main);
+            transform: none;
+            box-shadow: none;
+            background: none;
+        }
     </style>
 </head>
 <body>
@@ -222,27 +266,32 @@
         <div id="dashboard-view" class="hidden">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                 <h2>Panel de Administración</h2>
-                <button id="logout-btn">Cerrar Sesión</button>
+                <div>
+                    <button id="open-create-modal" style="margin-right: 10px;">+ Crear Usuario</button>
+                    <button id="logout-btn">Cerrar Sesión</button>
+                </div>
             </div>
             
-            <div class="crud-box">
-                <h3>Crear / Editar Usuario</h3>
-                <form id="crud-form">
-                    <input type="hidden" id="user-id">
-                    <div class="crud-inputs">
-                        <div>
+            <!-- Modal de CRUD -->
+            <div id="crud-modal" class="modal-overlay">
+                <div class="modal-content">
+                    <button class="close-modal" id="close-modal">&times;</button>
+                    <h3 id="modal-title" style="margin-top: 0;">Crear Usuario</h3>
+                    <form id="crud-form">
+                        <input type="hidden" id="user-id">
+                        <div class="form-group">
                             <label>Nombre Completo</label>
                             <input type="text" id="user-name" placeholder="Ej. Juan Pérez" required>
                         </div>
-                        <div>
+                        <div class="form-group">
                             <label>Correo Electrónico</label>
                             <input type="email" id="user-email" placeholder="juan@ejemplo.com" required>
                         </div>
-                        <div>
+                        <div class="form-group">
                             <label>Contraseña</label>
                             <input type="password" id="user-password" placeholder="Mínimo 8 caracteres">
                         </div>
-                        <div>
+                        <div class="form-group">
                             <label>Rol de Usuario</label>
                             <select id="user-role">
                                 <option value="Administrador">Administrador</option>
@@ -250,9 +299,9 @@
                                 <option value="Usuario Regular">Usuario Regular</option>
                             </select>
                         </div>
-                    </div>
-                    <button type="submit" id="save-btn" style="width: 100%; margin-top: 10px;">Guardar Usuario</button>
-                </form>
+                        <button type="submit" id="save-btn" style="width: 100%; margin-top: 10px;">Guardar Usuario</button>
+                    </form>
+                </div>
             </div>
             
             <h3>Usuarios Registrados</h3>
@@ -289,6 +338,35 @@
         const crudForm = document.getElementById('crud-form');
         const logoutBtn = document.getElementById('logout-btn');
         const alertBox = document.getElementById('alert');
+        
+        const crudModal = document.getElementById('crud-modal');
+        const openCreateModalBtn = document.getElementById('open-create-modal');
+        const closeModalBtn = document.getElementById('close-modal');
+        const modalTitle = document.getElementById('modal-title');
+
+        if (openCreateModalBtn) {
+            openCreateModalBtn.addEventListener('click', () => {
+                crudForm.reset();
+                document.getElementById('user-id').value = '';
+                document.getElementById('user-password').placeholder = "Mínimo 8 caracteres";
+                modalTitle.textContent = 'Crear Usuario';
+                crudModal.classList.add('active');
+            });
+        }
+
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', () => {
+                crudModal.classList.remove('active');
+            });
+        }
+
+        if (crudModal) {
+            crudModal.addEventListener('click', (e) => {
+                if (e.target === crudModal) {
+                    crudModal.classList.remove('active');
+                }
+            });
+        }
 
         function showAlert(msg, isError = false) {
             alertBox.textContent = msg;
@@ -420,6 +498,7 @@
                     crudForm.reset();
                     document.getElementById('user-id').value = '';
                     document.getElementById('user-password').placeholder = "Mínimo 8 caracteres";
+                    crudModal.classList.remove('active');
                     fetchUsers();
                 } else {
                     showAlert(data.message || 'Error guardando usuario', true);
@@ -439,7 +518,8 @@
             for(let i=0; i<select.options.length; i++) {
                 if(select.options[i].value === role) { select.selectedIndex = i; break; }
             }
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            modalTitle.textContent = 'Editar Usuario';
+            crudModal.classList.add('active');
         };
 
         // Delete User

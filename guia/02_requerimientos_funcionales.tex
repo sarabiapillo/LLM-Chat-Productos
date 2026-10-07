@@ -1,0 +1,495 @@
+\section{Requerimientos Funcionales}
+
+\subsection{1. Gestión de Usuarios}
+Se crearon los endpoints en \texttt{AuthController.php}:
+\begin{itemize}
+    \item \textbf{Registro:} \texttt{POST /api/v1/register} (Nombre, Email, Contraseña).
+    \item \textbf{Inicio de Sesión:} \texttt{POST /api/v1/login} que devuelve el JWT.
+    \item \textbf{Cierre de sesión:} \texttt{POST /api/v1/logout}, que revoca el token en uso.
+    \item \textbf{Recuperación de Contraseña:} La arquitectura de base de datos soporta los flujos de \texttt{password\_resets} integrados en Laravel.
+\end{itemize}
+
+\subsubsection{Registro de usuarios}
+\textbf{Dónde:} método \texttt{register} de \texttt{app/Http/Controllers/Api/AuthController.php}. La ruta es pública (no requiere token) porque un usuario nuevo todavía no puede tener uno.
+
+\begin{lstlisting}[caption={AuthController::register}]
+public function register(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users',
+        'password' => 'required|min:8',
+    ]);
+
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+    ]);
+
+    // Default role for new users
+    $user->assignRole('Usuario Regular');
+
+    AuditLog::create([
+        'user_id' => $user->id,
+        'action' => 'Registro de usuario',
+        'ip_address' => $request->ip(),
+        'details' => 'Nuevo usuario registrado vía API'
+    ]);
+
+    return response()->json(['message' => 'Usuario registrado exitosamente',
+                             'user' => $user], 201);
+}
+\end{lstlisting}
+
+\textbf{Explicación paso a paso:}
+\begin{enumerate}
+    \item \textbf{Validación.} \texttt{\$request->validate()} comprueba que el nombre exista y tenga máximo 255 caracteres, que el correo tenga formato válido y no esté repetido en la tabla \texttt{users} (regla \texttt{unique:users}) y que la contraseña tenga al menos 8 caracteres. Si algo falla, Laravel corta la ejecución y responde \textbf{422 Unprocessable Entity} con el detalle de cada campo inválido; el código siguiente no se ejecuta.
+    \item \textbf{Creación del usuario.} Se guarda con \texttt{Hash::make}, de modo que en la base de datos nunca queda la contraseña original (ver sección de cifrado).
+    \item \textbf{Rol por defecto.} Todo usuario que se registra por sí mismo recibe el rol \texttt{Usuario Regular}, el de menores privilegios. Esto es una aplicación directa del principio de mínimo privilegio: el registro público \textbf{nunca} puede crear administradores.
+    \item \textbf{Auditoría.} Se inserta un registro con el ID del nuevo usuario, la IP desde la que se registró y una descripción.
+    \item \textbf{Respuesta 201 Created.} Se devuelve el usuario. Como el modelo declara \texttt{\$hidden = ['password', 'remember\_token']}, esos campos se omiten automáticamente del JSON.
+\end{enumerate}
+
+\textbf{Ejemplo de uso:}
+\begin{lstlisting}[language=bash, caption={Registro desde la línea de comandos}]
+curl -X POST http://127.0.0.1:8000/api/v1/register \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Ana","email":"ana@example.com","password":"claveSegura123"}'
+\end{lstlisting}
+
+\begin{lstlisting}[language={}, caption={Respuesta esperada (201)}]
+{
+  "message": "Usuario registrado exitosamente",
+  "user": { "id": 3, "name": "Ana", "email": "ana@example.com",
+            "updated_at": "...", "created_at": "..." }
+}
+\end{lstlisting}
+
+\subsubsection{Inicio de sesión y emisión del JWT}
+\textbf{Dónde:} método \texttt{login} de \texttt{AuthController}. La ruta está protegida contra fuerza bruta con \texttt{throttle:5,1}.
+
+\begin{lstlisting}[caption={AuthController::login}]
+public function login(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email',
+        'password' => 'required',
+    ]);
+
+    $user = User::where('email', $request->email)->first();
+
+    if (! $user || ! Hash::check($request->password, $user->password)) {
+        return response()->json(['message' => 'Credenciales incorrectas'], 401);
+    }
+
+    AuditLog::create([
+        'user_id' => $user->id,
+        'action' => 'Inicio de sesión',
+        'ip_address' => $request->ip(),
+        'details' => 'Inicio de sesión exitoso'
+    ]);
+
+    $tokenResult = $user->createToken('Personal Access Token');
+    $token = $tokenResult->token;
+    $token->expires_at = now()->addMinutes(720); // 12 horas
+    $token->save();
+
+    return response()->json([
+        'access_token' => $tokenResult->accessToken,
+        'token_type' => 'Bearer',
+        'expires_at' => \Carbon\Carbon::parse($tokenResult->token->expires_at)
+                            ->toDateTimeString(),
+        'role' => $user->getRoleNames()->first()
+    ]);
+}
+\end{lstlisting}
+
+\textbf{Explicación paso a paso:}
+\begin{enumerate}
+    \item Se validan formato de correo y presencia de contraseña.
+    \item Se busca al usuario por correo. Se usa \texttt{where()->first()} del ORM, que genera una sentencia SQL preparada (sin concatenar texto), por lo que no es vulnerable a inyección SQL.
+    \item \texttt{Hash::check} compara la contraseña recibida contra el hash Bcrypt almacenado. La comparación se hace en tiempo seguro dentro de la función de PHP.
+    \item Si el usuario no existe \textbf{o} la contraseña es incorrecta, se devuelve exactamente el mismo mensaje (\emph{Credenciales incorrectas}) con código 401. Esto evita la \textbf{enumeración de usuarios}: un atacante no puede saber si un correo está registrado.
+    \item Se registra el inicio de sesión en la auditoría.
+    \item \texttt{createToken} genera un token de acceso personal de Passport. El proyecto lo extiende a \textbf{12 horas} (720 minutos) modificando \texttt{expires\_at}.
+    \item Se responde con el token, su tipo (\texttt{Bearer}), su fecha de expiración y el rol del usuario, que el frontend usa para decidir qué mostrar.
+\end{enumerate}
+
+\textbf{Ejemplo de uso y respuesta:}
+\begin{lstlisting}[language=bash, caption={Login y obtención del token}]
+curl -X POST http://127.0.0.1:8000/api/v1/login \
+  -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{"email":"admin@admin.com","password":"password123"}'
+\end{lstlisting}
+
+\begin{lstlisting}[language={}, caption={Respuesta esperada (200)}]
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9....",
+  "token_type": "Bearer",
+  "expires_at": "2026-10-06 11:30:00",
+  "role": "Administrador"
+}
+\end{lstlisting}
+
+\subsubsection{Estructura de un JWT}
+El valor de \texttt{access\_token} es un JWT, formado por tres partes separadas por puntos:
+\begin{longtable}{p{3cm}p{12cm}}
+\toprule
+\textbf{Parte} & \textbf{Contenido} \\
+\midrule
+\endhead
+Encabezado (\emph{header}) & Algoritmo de firma (\texttt{RS256}) y tipo de token (\texttt{JWT}). \\
+Carga (\emph{payload}) & Identificador del token (\texttt{jti}), identificador del cliente (\texttt{aud}), usuario (\texttt{sub}), fechas de emisión y expiración (\texttt{iat}, \texttt{exp}) y alcances (\texttt{scopes}). \\
+Firma (\emph{signature}) & Resultado de firmar encabezado y carga con la clave privada RSA. Cualquiera puede leer el contenido, pero nadie puede modificarlo sin invalidar la firma. \\
+\bottomrule
+\end{longtable}
+
+\begin{aviso}[Importante sobre confidencialidad]
+Un JWT está \emph{firmado}, no \emph{cifrado}: su contenido puede decodificarse en Base64 por cualquiera que lo tenga. Por eso el proyecto no incluye contraseñas ni datos sensibles en él, y por eso es indispensable transportarlo siempre por HTTPS.
+\end{aviso}
+
+\subsubsection{Cierre de sesión}
+\begin{lstlisting}[caption={AuthController::logout}]
+public function logout(Request $request)
+{
+    AuditLog::create([
+        'user_id' => $request->user()->id,
+        'action' => 'Cierre de sesión',
+        'ip_address' => $request->ip(),
+        'details' => 'Cierre de sesión manual'
+    ]);
+
+    $request->user()->token()->revoke();
+    return response()->json(['message' => 'Sesión cerrada correctamente']);
+}
+\end{lstlisting}
+\texttt{token()->revoke()} marca el token como revocado en la tabla \texttt{oauth\_access\_tokens}. A partir de ese momento, aunque el token no haya vencido, Passport lo rechazará con 401. Esto es lo que da sentido real al botón \emph{Cerrar sesión}: no basta con borrar el token del navegador, también se invalida en el servidor.
+
+\subsubsection{Recuperación de contraseña}
+El proyecto incluye las migraciones base de Laravel (\texttt{0001\_01\_01\_000000\_create\_users\_table.php}), que crean la tabla \texttt{password\_reset\_tokens} y la tabla \texttt{sessions}. Asimismo, en \texttt{app/Http/Controllers/Auth/} existen los controladores estándar de Laravel Breeze (\texttt{PasswordResetLinkController}, \texttt{NewPasswordController}, etc.). Por tanto, la \emph{base de datos y la lógica} del flujo de recuperación están disponibles; no obstante, este flujo está pensado para la interfaz web tradicional y no está expuesto como endpoint de la API \texttt{api/v1}.
+
+\subsection{2. Gestión de Roles}
+Se integró el paquete \textbf{Spatie Laravel Permission} para gestionar de manera dinámica los tres roles predeterminados:
+\begin{itemize}
+    \item \textbf{Administrador:} Tiene acceso total (Lectura, Escritura, Eliminación).
+    \item \textbf{Editor:} Tiene permisos limitados (Lectura, Escritura).
+    \item \textbf{Usuario Regular:} Solo tiene permiso de lectura.
+\end{itemize}
+Estos fueron insertados en la base de datos a través de \texttt{RolesAndPermissionsSeeder.php}.
+
+\subsubsection{El seeder paso a paso}
+\begin{lstlisting}[caption={RolesAndPermissionsSeeder::run (fragmento)}]
+// create permissions
+Permission::firstOrCreate(['name' => 'Lectura',     'guard_name' => 'api']);
+Permission::firstOrCreate(['name' => 'Escritura',   'guard_name' => 'api']);
+Permission::firstOrCreate(['name' => 'Eliminacion', 'guard_name' => 'api']);
+
+// create roles and assign created permissions
+$roleRegular = Role::firstOrCreate(['name' => 'Usuario Regular', 'guard_name' => 'api'])
+    ->givePermissionTo(['Lectura']);
+
+$roleEditor = Role::firstOrCreate(['name' => 'Editor', 'guard_name' => 'api'])
+    ->givePermissionTo(['Lectura', 'Escritura']);
+
+$roleAdmin = Role::firstOrCreate(['name' => 'Administrador', 'guard_name' => 'api'])
+    ->givePermissionTo(['Lectura', 'Escritura', 'Eliminacion']);
+\end{lstlisting}
+
+\begin{itemize}
+    \item \texttt{firstOrCreate} hace que el seeder sea \textbf{idempotente}: se puede ejecutar varias veces sin duplicar roles ni permisos.
+    \item \texttt{guard\_name => 'api'} es esencial. Spatie asocia cada rol y permiso a un \emph{guard}. Como el \texttt{RoleMiddleware} se ejecuta tras autenticar con el guard \texttt{api} (Passport), los roles deben pertenecer a ese guard; de lo contrario \texttt{hasAnyRole} no los encontraría.
+    \item Al inicio del seeder se llama a \texttt{forgetCachedPermissions()} para vaciar la caché de Spatie y evitar que datos antiguos interfieran.
+\end{itemize}
+
+\subsubsection{Matriz de roles y permisos}
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Rol} & \textbf{Lectura} & \textbf{Escritura} & \textbf{Eliminación} \\
+\midrule
+Usuario Regular & Sí & No & No \\
+Editor & Sí & Sí & No \\
+Administrador & Sí & Sí & Sí \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Usuarios de demostración}
+El seeder también crea dos cuentas para probar el sistema:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Correo} & \textbf{Rol} & \textbf{Uso} \\
+\midrule
+\texttt{admin@admin.com} & Administrador & Acceso total al dashboard \\
+\texttt{editor@editor.com} & Editor & Prueba de rechazo 403 en rutas de admin \\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{aviso}[Credenciales de demostración]
+Estas cuentas usan una contraseña de ejemplo escrita en el seeder. Son válidas solo para desarrollo y evaluación. En un despliegue real deben eliminarse o cambiarse antes de publicar la aplicación.
+\end{aviso}
+
+\subsubsection{Cómo se vincula un usuario con un rol}
+El modelo \texttt{User} usa el \emph{trait} \texttt{HasRoles} de Spatie:
+\begin{lstlisting}[caption={app/Models/User.php (fragmento)}]
+use Laravel\Passport\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+
+    protected $fillable = ['name', 'email', 'password'];
+    protected $hidden   = ['password', 'remember_token'];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
+    }
+}
+\end{lstlisting}
+Este trait añade métodos como \texttt{assignRole()}, \texttt{syncRoles()}, \texttt{hasAnyRole()}, \texttt{getRoleNames()} y \texttt{givePermissionTo()}. Observe además dos medidas de seguridad en el modelo:
+\begin{itemize}
+    \item \texttt{\$fillable} limita qué campos pueden asignarse en masa; el campo de rol no puede inyectarse mediante \emph{mass assignment}.
+    \item El \emph{cast} \texttt{'password' => 'hashed'} indica a Eloquent que cifre la contraseña automáticamente al asignarla.
+\end{itemize}
+
+\subsection{3. Gestión de Permisos}
+Los permisos (\textit{Lectura, Escritura, Eliminación}) están desacoplados del código fuente y residen en tablas relacionales (\texttt{role\_has\_permissions}). Esto permite asignar permisos a los roles de forma dinámica y aplicar políticas a áreas específicas de la aplicación.
+
+\subsubsection{Modelo de datos de Spatie}
+La migración \texttt{2026\_10\_05\_021919\_create\_permission\_tables.php} crea cinco tablas:
+\begin{longtable}{p{5cm}p{10cm}}
+\toprule
+\textbf{Tabla} & \textbf{Contenido} \\
+\midrule
+\endhead
+\texttt{permissions} & Catálogo de permisos (\texttt{id}, \texttt{name}, \texttt{guard\_name}). \\
+\texttt{roles} & Catálogo de roles (\texttt{id}, \texttt{name}, \texttt{guard\_name}). \\
+\texttt{role\_has\_permissions} & Relación muchos-a-muchos: qué permisos tiene cada rol. \\
+\texttt{model\_has\_roles} & Relación muchos-a-muchos: qué roles tiene cada usuario. \\
+\texttt{model\_has\_permissions} & Permisos asignados directamente a un usuario (sin pasar por rol). \\
+\bottomrule
+\end{longtable}
+
+\begin{lstlisting}[language={}, caption={Relaciones entre las tablas}]
+ users --< model_has_roles >-- roles --< role_has_permissions >-- permissions
+   \                                                              /
+    `------------------< model_has_permissions >----------------'
+\end{lstlisting}
+
+Gracias a este diseño, \textbf{cambiar lo que puede hacer un rol no requiere modificar código}: basta con insertar o borrar filas en \texttt{role\_has\_permissions}. El endpoint \texttt{POST /admin/roles} permite precisamente crear roles nuevos con la lista de permisos que se desee.
+
+\subsubsection{Creación dinámica de roles}
+\begin{lstlisting}[caption={AdminController::createRole}]
+public function createRole(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|unique:roles,name',
+        'permissions' => 'array',
+        'permissions.*' => 'string|exists:permissions,name'
+    ]);
+
+    $role = Role::create(['name' => $request->name, 'guard_name' => 'api']);
+
+    if ($request->has('permissions')) {
+        $role->givePermissionTo($request->permissions);
+    }
+
+    AuditLog::create([ /* user_id, 'Crear Rol', ip_address, details */ ]);
+
+    return response()->json(['message' => 'Rol creado exitosamente',
+                             'role' => $role], 201);
+}
+\end{lstlisting}
+La validación \texttt{permissions.*: exists:permissions,name} garantiza que solo se puedan asociar permisos que ya existen en el catálogo, evitando referencias inválidas.
+
+\begin{lstlisting}[language=bash, caption={Crear el rol "Moderador" con permisos de lectura y escritura}]
+curl -X POST http://127.0.0.1:8000/api/v1/admin/roles \
+  -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Moderador","permissions":["Lectura","Escritura"]}'
+\end{lstlisting}
+
+\subsection{4. Control de Acceso y Auditoría}
+El acceso está controlado desde el backend usando \texttt{Route::middleware('role:Administrador')}. Si un Editor intenta acceder a una ruta de Administrador, el servidor responde con \textbf{403 Forbidden}. \\
+\textbf{Historial de Acceso:} Se creó el modelo \texttt{AuditLog} en Laravel. En cada acción (registro, login, asignar rol), se captura la dirección IP del usuario, ID, y acción, guardándola de forma inmutable.
+
+\subsubsection{El middleware de roles}
+\begin{lstlisting}[caption={app/Http/Middleware/RoleMiddleware.php}]
+public function handle(Request $request, Closure $next, string ...$roles): Response
+{
+    if (! $request->user() || ! $request->user()->hasAnyRole($roles)) {
+        return response()->json(['message' => 'Forbidden - Insufficient permissions'], 403);
+    }
+
+    return $next($request);
+}
+\end{lstlisting}
+\begin{itemize}
+    \item Recibe los roles permitidos como parámetros variables: \texttt{role:Administrador} o, por ejemplo, \texttt{role:Administrador,Editor}.
+    \item \texttt{hasAnyRole(\$roles)} consulta las tablas de Spatie. Es una verificación hecha \textbf{siempre en el servidor}, con datos de la base de datos, no con datos que envíe el cliente.
+    \item Si no hay usuario autenticado, o no posee ninguno de los roles, responde 403 y la petición se detiene.
+\end{itemize}
+
+\subsubsection{Dónde se aplica}
+\begin{lstlisting}[caption={routes/api.php (fragmento)}]
+// Rutas protegidas (Requieren JWT de Passport)
+Route::middleware('auth:api')->group(function () {
+
+    // ... rutas de perfil, conversaciones y chat ...
+
+    // Rutas de Administración (Protegidas por middleware de rol)
+    Route::middleware('role:Administrador')->group(function () {
+        Route::get('/admin/users', [AdminController::class, 'listUsers']);
+        Route::post('/admin/users', [AdminController::class, 'createUser']);
+        Route::put('/admin/users/{userId}', [AdminController::class, 'updateUser']);
+        Route::delete('/admin/users/{userId}', [AdminController::class, 'deleteUser']);
+        Route::post('/admin/users/{userId}/role', [AdminController::class, 'assignRole']);
+        Route::post('/admin/roles', [AdminController::class, 'createRole']);
+        Route::get('/admin/audit-logs', [AdminController::class, 'auditLogs']);
+    });
+
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
+\end{lstlisting}
+Los grupos están \textbf{anidados}: primero se exige un token válido (\texttt{auth:api}) y, dentro de ese grupo, se exige además el rol de administrador. Una ruta de administración, por tanto, atraviesa dos filtros independientes.
+
+\subsubsection{Prueba del control de acceso}
+\begin{lstlisting}[language=bash, caption={Un Editor intenta listar usuarios}]
+# 1) Login como editor
+TOKEN=$(curl -s -X POST http://127.0.0.1:8000/api/v1/login \
+  -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{"email":"editor@editor.com","password":"password123"}' \
+  | php -r 'echo json_decode(stream_get_contents(STDIN))->access_token;')
+
+# 2) Intento de acceder a una ruta de administrador
+curl -i http://127.0.0.1:8000/api/v1/admin/users \
+  -H "Authorization: Bearer $TOKEN" -H "Accept: application/json"
+\end{lstlisting}
+\begin{lstlisting}[language={}, caption={Respuesta}]
+HTTP/1.1 403 Forbidden
+{"message":"Forbidden - Insufficient permissions"}
+\end{lstlisting}
+
+\subsubsection{La bitácora de auditoría}
+\textbf{Estructura de la tabla} (migración \texttt{create\_audit\_logs\_table}):
+\begin{lstlisting}[caption={Migración de audit\_logs}]
+Schema::create('audit_logs', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+    $table->string('action');
+    $table->string('ip_address')->nullable();
+    $table->text('details')->nullable();
+    $table->timestamps();
+});
+\end{lstlisting}
+\begin{longtable}{p{3.2cm}p{11.8cm}}
+\toprule
+\textbf{Columna} & \textbf{Propósito} \\
+\midrule
+\endhead
+\texttt{id} & Identificador autoincremental. \\
+\texttt{user\_id} & Quién realizó la acción. Es llave foránea a \texttt{users}; con \texttt{nullOnDelete} el registro \textbf{se conserva} aunque el usuario sea eliminado (el campo pasa a \texttt{NULL}), de modo que la historia no se pierde. \\
+\texttt{action} & Qué se hizo (por ejemplo \emph{Inicio de sesión} o \emph{POST api/v1/admin/roles}). \\
+\texttt{ip\_address} & Desde qué dirección IP. \\
+\texttt{details} & Información adicional en texto. \\
+\texttt{created\_at} & Cuándo ocurrió (marca de tiempo automática). \\
+\bottomrule
+\end{longtable}
+
+\textbf{Dos mecanismos de registro complementarios:}
+\begin{enumerate}
+    \item \textbf{Registro explícito en controladores.} Los eventos de negocio relevantes (registro, login, logout, crear/editar/eliminar usuario, asignar rol, crear rol) llaman a \texttt{AuditLog::create(...)} con una descripción legible.
+    \item \textbf{Registro automático por middleware.} \texttt{AuditMiddleware} anota cada petición realizada por un usuario autenticado:
+\end{enumerate}
+\begin{lstlisting}[caption={app/Http/Middleware/AuditMiddleware.php}]
+public function handle(Request $request, Closure $next): Response
+{
+    if ($request->user()) {
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => $request->method() . ' ' . $request->path(),
+            'ip_address' => $request->ip(),
+            'details' => json_encode(
+                $request->except(['password', 'password_confirmation'])),
+        ]);
+    }
+
+    return $next($request);
+}
+\end{lstlisting}
+Se observa que, antes de guardar el cuerpo de la petición en \texttt{details}, se \textbf{excluyen los campos de contraseña}. Así la propia bitácora no se convierte en una fuga de credenciales.
+
+\textbf{Sobre la inmutabilidad.} La aplicación no expone ningún endpoint para modificar ni borrar registros de auditoría: solo existe \texttt{GET /admin/audit-logs} (lectura) y la inserción interna desde el código. En ese sentido, ningún usuario puede alterar la bitácora a través de la API. Esta garantía es \emph{a nivel de aplicación}; ver el capítulo \ref{sec:estado} para las recomendaciones de reforzarla a nivel de base de datos.
+
+\subsection{5. Dashboard de Administración}
+El \texttt{AdminController.php} expone las siguientes rutas protegidas exclusivas para administradores:
+\begin{itemize}
+    \item Ver usuarios registrados (\texttt{GET /admin/users}).
+    \item Crear, editar y eliminar usuarios (\texttt{POST, PUT, DELETE}).
+    \item Asignar/revocar roles (\texttt{POST /admin/users/\{id\}/role}).
+    \item Crear roles (\texttt{POST /admin/roles}).
+    \item Consultar registros de auditoría (\texttt{GET /admin/audit-logs}).
+\end{itemize}
+Recuerde que todas llevan el prefijo \texttt{/api/v1}.
+
+\subsubsection{Tabla resumen de endpoints de administración}
+\begin{longtable}{p{1.7cm}p{5.3cm}p{8cm}}
+\toprule
+\textbf{Verbo} & \textbf{Ruta} & \textbf{Acción y validaciones} \\
+\midrule
+\endhead
+GET & \texttt{/admin/users} & Lista todos los usuarios con sus roles (\texttt{User::with('roles')}). \\
+POST & \texttt{/admin/users} & Crea usuario. Valida nombre, correo único, contraseña mínimo 8 y que el rol exista. \\
+PUT & \texttt{/admin/users/\{userId\}} & Actualiza nombre, correo (único, ignorando al propio usuario) y/o rol. \\
+DELETE & \texttt{/admin/users/\{userId\}} & Elimina usuario. Un administrador no puede eliminarse a sí mismo (400). \\
+POST & \texttt{/admin/users/\{userId\}/role} & Reemplaza los roles del usuario por uno nuevo (\texttt{syncRoles}). \\
+POST & \texttt{/admin/roles} & Crea un rol y opcionalmente sus permisos. \\
+GET & \texttt{/admin/audit-logs} & Devuelve la bitácora, más reciente primero (\texttt{AuditLog::latest()}). \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Detalles de implementación destacables}
+\textbf{Eliminación segura.}
+\begin{lstlisting}[caption={AdminController::deleteUser}]
+public function deleteUser(Request $request, $id)
+{
+    $user = User::findOrFail($id);
+
+    if ($user->id === $request->user()->id) {
+        return response()->json(['message' => 'No puedes eliminarte a ti mismo'], 400);
+    }
+
+    $user->delete();
+    AuditLog::create([ /* 'Eliminar Usuario', IP, detalle */ ]);
+    return response()->json(['message' => 'Usuario eliminado correctamente']);
+}
+\end{lstlisting}
+\texttt{findOrFail} devuelve \textbf{404} si el usuario no existe. La comparación con \texttt{\$request->user()->id} evita que el único administrador se elimine por error y deje el sistema sin nadie capaz de gestionarlo.
+
+\textbf{Actualización con unicidad que ignora al propio registro.} En \texttt{updateUser} la regla \texttt{unique:users,email,\$id} indica que el correo debe ser único \emph{excepto} para el usuario que se está editando; así es posible guardar un perfil sin cambiar el correo sin recibir un falso error de duplicado. Solo se actualizan \texttt{name} y \texttt{email} mediante \texttt{\$request->only([...])}, por lo que otros campos enviados en la petición se ignoran.
+
+\textbf{Reemplazo de rol.} Tanto \texttt{assignRole} como \texttt{updateUser} usan \texttt{syncRoles([...])}, que \emph{sustituye} los roles anteriores. Cada usuario administrado desde el panel queda, por tanto, con un único rol, lo que simplifica el razonamiento sobre sus privilegios.
+
+\subsection{6. Arquitectura Web y Consumo de Servicios}
+Se aplicó una \textbf{arquitectura desacoplada estricta}:
+\begin{itemize}
+    \item \textbf{Frontend:} Es un cliente tonto (\texttt{public/admin.html}) que no tiene acceso a la base de datos.
+    \item \textbf{Backend:} Expone todo exclusivamente a través de la API REST (\texttt{routes/api.php}).
+    \item \textbf{JWT:} La comunicación viaja en los headers como \texttt{Authorization: Bearer <token>}. No se usan Vistas de Blade para el renderizado del dashboard para no romper la regla del estado (Stateless).
+\end{itemize}
+
+\textbf{Cómo se materializa en el proyecto:}
+\begin{itemize}
+    \item \texttt{routes/web.php} contiene únicamente dos redirecciones hacia \texttt{/admin.html}; no hay ninguna ruta que devuelva una vista Blade para el panel.
+    \item El archivo \texttt{public/admin.html} es un documento estático servido directamente por el servidor web. Toda interacción con datos se hace con \texttt{fetch()} hacia \texttt{/api/v1}.
+    \item El frontend no contiene credenciales de base de datos ni lógica de autorización; solo conserva el token que el servidor le entregó.
+\end{itemize}
+En el capítulo \ref{sec:frontend} se detalla el funcionamiento interno del dashboard.

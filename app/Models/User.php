@@ -24,7 +24,19 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'company_id',
+        'verification_code',
+        'is_2fa_verified',
     ];
+
+    /**
+     * Empresa a la que pertenece el usuario (para el esquema multi-tenant)
+     */
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     /**
      * The attributes that should be hidden for serialization.

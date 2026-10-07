@@ -9,24 +9,209 @@
 \providecommand\HyField@AuxAddToFields[1]{}
 \providecommand\HyField@AuxAddToCoFields[2]{}
 \babel@aux{spanish}{}
-\@writefile{toc}{\contentsline {section}{\numberline {1}Objetivo del Caso Práctico}{3}{section.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2}Requerimientos Funcionales}{3}{section.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}1. Gestión de Usuarios}{3}{subsection.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}2. Gestión de Roles}{3}{subsection.2.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}3. Gestión de Permisos}{3}{subsection.2.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}4. Control de Acceso y Auditoría}{3}{subsection.2.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.5}5. Dashboard de Administración}{4}{subsection.2.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.6}6. Arquitectura Web y Consumo de Servicios}{4}{subsection.2.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3}Requerimientos Técnicos}{4}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}Requerimientos de Seguridad Computacional}{4}{section.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}1. Cifrado de contraseñas}{4}{subsection.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}2. Comunicación Cifrada (HTTPS/TLS)}{5}{subsection.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}3. Gestión segura de tokens JWT}{5}{subsection.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}4. Autorización verificada en el servidor}{5}{subsection.4.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}5. Validación y Sanitización de Entradas}{5}{subsection.4.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}6. Protección contra ataques de fuerza bruta}{5}{subsection.4.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.7}7. Registro de auditoría con trazabilidad}{5}{subsection.4.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.8}8. Manejo seguro de CORS}{5}{subsection.4.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.9}9. Principio de Mínimo Privilegio}{5}{subsection.4.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.10}10. Manejo de errores sin fuga de información}{6}{subsection.4.10}\protected@file@percent }
-\gdef \@abspage@last{6}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Objetivo del Caso Práctico}{6}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.1}Cómo leer este documento}{6}{subsection.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Alcance del proyecto}{6}{subsection.1.2}\protected@file@percent }
+\gdef \LT@i {\LT@entry 
+    {1}{131.50148pt}\LT@entry 
+    {1}{319.28984pt}}
+\gdef \LT@ii {\LT@entry 
+    {1}{194.09746pt}\LT@entry 
+    {1}{256.69386pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Arquitectura General}{7}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Pila tecnológica}{7}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Estructura de carpetas relevante}{7}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Prefijo y versionado de la API}{8}{subsection.2.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {1}Configuración de rutas y middlewares en bootstrap/app.php}{8}{lstlisting.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Flujo completo de una petición protegida}{9}{subsection.2.4}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {2}Ciclo de vida de una petición protegida}{9}{lstlisting.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.5}Principio de arquitectura desacoplada}{9}{subsection.2.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Requerimientos Funcionales}{10}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}1. Gestión de Usuarios}{10}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Registro de usuarios}{10}{subsubsection.3.1.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {3}AuthController::register}{10}{lstlisting.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {4}Registro desde la línea de comandos}{11}{lstlisting.4}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5}Respuesta esperada (201)}{11}{lstlisting.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Inicio de sesión y emisión del JWT}{12}{subsubsection.3.1.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {6}AuthController::login}{12}{lstlisting.6}\protected@file@percent }
+\gdef \LT@iii {\LT@entry 
+    {1}{97.35826pt}\LT@entry 
+    {1}{353.43306pt}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {7}Login y obtención del token}{13}{lstlisting.7}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {8}Respuesta esperada (200)}{13}{lstlisting.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Estructura de un JWT}{13}{subsubsection.3.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.4}Cierre de sesión}{14}{subsubsection.3.1.4}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9}AuthController::logout}{14}{lstlisting.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.5}Recuperación de contraseña}{14}{subsubsection.3.1.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}2. Gestión de Roles}{14}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}El seeder paso a paso}{14}{subsubsection.3.2.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {10}RolesAndPermissionsSeeder::run (fragmento)}{14}{lstlisting.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Matriz de roles y permisos}{15}{subsubsection.3.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Usuarios de demostración}{15}{subsubsection.3.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.4}Cómo se vincula un usuario con un rol}{16}{subsubsection.3.2.4}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {11}app/Models/User.php (fragmento)}{16}{lstlisting.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}3. Gestión de Permisos}{16}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Modelo de datos de Spatie}{16}{subsubsection.3.3.1}\protected@file@percent }
+\gdef \LT@iv {\LT@entry 
+    {1}{154.26378pt}\LT@entry 
+    {1}{296.52756pt}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {12}Relaciones entre las tablas}{17}{lstlisting.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Creación dinámica de roles}{17}{subsubsection.3.3.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {13}AdminController::createRole}{17}{lstlisting.13}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {14}Crear el rol "Moderador" con permisos de lectura y escritura}{17}{lstlisting.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}4. Control de Acceso y Auditoría}{18}{subsection.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.4.1}El middleware de roles}{18}{subsubsection.3.4.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {15}app/Http/Middleware/RoleMiddleware.php}{18}{lstlisting.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.4.2}Dónde se aplica}{18}{subsubsection.3.4.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {16}routes/api.php (fragmento)}{18}{lstlisting.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.4.3}Prueba del control de acceso}{19}{subsubsection.3.4.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {17}Un Editor intenta listar usuarios}{19}{lstlisting.17}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {18}Respuesta}{19}{lstlisting.18}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.4.4}La bitácora de auditoría}{19}{subsubsection.3.4.4}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {19}Migración de audit\_logs}{19}{lstlisting.19}\protected@file@percent }
+\gdef \LT@v {\LT@entry 
+    {1}{103.04872pt}\LT@entry 
+    {1}{347.7426pt}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {20}app/Http/Middleware/AuditMiddleware.php}{20}{lstlisting.20}\protected@file@percent }
+\gdef \LT@vi {\LT@entry 
+    {1}{60.36958pt}\LT@entry 
+    {1}{162.79968pt}\LT@entry 
+    {1}{239.62204pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}5. Dashboard de Administración}{21}{subsection.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.5.1}Tabla resumen de endpoints de administración}{21}{subsubsection.3.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.5.2}Detalles de implementación destacables}{21}{subsubsection.3.5.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {21}AdminController::deleteUser}{22}{lstlisting.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}6. Arquitectura Web y Consumo de Servicios}{22}{subsection.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Requerimientos Técnicos}{23}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Lenguaje, framework y base de datos}{23}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Configuración de la base de datos}{23}{subsubsection.4.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.2}Migraciones}{23}{subsubsection.4.1.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {22}Crear tablas y cargar datos iniciales}{23}{lstlisting.22}\protected@file@percent }
+\gdef \LT@vii {\LT@entry 
+    {1}{216.85974pt}\LT@entry 
+    {1}{233.93158pt}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.3}Acceso a datos y protección contra inyección SQL}{24}{subsubsection.4.1.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {23}Consulta del login y SQL equivalente generado}{24}{lstlisting.23}\protected@file@percent }
+\gdef \LT@viii {\LT@entry 
+    {1}{68.9055pt}\LT@entry 
+    {1}{154.26378pt}\LT@entry 
+    {1}{239.62204pt}}
+\gdef \LT@ix {\LT@entry 
+    {1}{54.67912pt}\LT@entry 
+    {1}{177.02606pt}\LT@entry 
+    {1}{91.6678pt}\LT@entry 
+    {1}{151.41832pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Frontend web}{25}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}API REST plena}{25}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.1}Verbos HTTP y su semántica}{25}{subsubsection.4.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.2}Catálogo completo de endpoints}{25}{subsubsection.4.3.2}\protected@file@percent }
+\gdef \LT@x {\LT@entry 
+    {1}{54.67912pt}\LT@entry 
+    {1}{140.0374pt}\LT@entry 
+    {1}{268.0748pt}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.3}Respuestas siempre en JSON}{26}{subsubsection.4.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.4}Códigos de estado usados}{26}{subsubsection.4.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Autenticación JWT con Laravel Passport}{27}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.4.1}Por qué Passport}{27}{subsubsection.4.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.4.2}Configuración del guard}{27}{subsubsection.4.4.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {24}config/auth.php (fragmento)}{27}{lstlisting.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.4.3}Claves RSA}{27}{subsubsection.4.4.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {25}Generación de claves y cliente de Passport}{27}{lstlisting.25}\protected@file@percent }
+\gdef \LT@xi {\LT@entry 
+    {1}{159.95424pt}\LT@entry 
+    {1}{290.83708pt}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.4.4}Tablas de Passport}{28}{subsubsection.4.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.4.5}Ciclo de vida de un token}{28}{subsubsection.4.4.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.4.6}Cómo se valida cada petición}{28}{subsubsection.4.4.6}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {26}Comportamiento sin token y con token manipulado}{28}{lstlisting.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Requerimientos de Seguridad Computacional}{29}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}1. Cifrado de contraseñas}{29}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.1}Dónde se aplica}{29}{subsubsection.5.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.2}Cómo funciona Bcrypt}{29}{subsubsection.5.1.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {27}Anatomía de un hash Bcrypt almacenado en la columna password}{29}{lstlisting.27}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.3}Verificación}{30}{subsubsection.5.1.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {28}Comprobar que la base no contiene contraseñas en claro}{30}{lstlisting.28}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}2. Comunicación Cifrada (HTTPS/TLS)}{30}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.2.1}Por qué es indispensable}{30}{subsubsection.5.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.2.2}Cómo se implementa en producción}{30}{subsubsection.5.2.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {29}Ejemplo de configuración Nginx: redirección a HTTPS y HSTS}{30}{lstlisting.29}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {30}Forzar esquema https en producción (a agregar en AppServiceProvider::boot)}{31}{lstlisting.30}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}3. Gestión segura de tokens JWT}{31}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.3.1}Expiración}{31}{subsubsection.5.3.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {31}Establecer la expiración a 12 horas (AuthController::login)}{31}{lstlisting.31}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.3.2}Firma y permisos de las claves}{32}{subsubsection.5.3.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {32}Estado verificado de las claves en el servidor}{32}{lstlisting.32}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.3.3}Revocación}{32}{subsubsection.5.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.3.4}Almacenamiento del token en el cliente}{32}{subsubsection.5.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}4. Autorización verificada en el servidor}{32}{subsection.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.4.1}El principio}{32}{subsubsection.5.4.1}\protected@file@percent }
+\gdef \LT@xii {\LT@entry 
+    {1}{131.50148pt}\LT@entry 
+    {1}{319.28984pt}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.4.2}Implementación}{33}{subsubsection.5.4.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {33}Registro del alias permission de Spatie (extensión prevista)}{33}{lstlisting.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.4.3}Prueba de que el ocultamiento visual no basta}{33}{subsubsection.5.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}5. Validación y Sanitización de Entradas}{33}{subsection.5.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.5.1}Reglas aplicadas por endpoint}{33}{subsubsection.5.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.5.2}Defensas combinadas}{34}{subsubsection.5.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.5.3}Ejemplo de rechazo por validación}{34}{subsubsection.5.5.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {34}Respuesta 422}{34}{lstlisting.34}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}6. Protección contra ataques de fuerza bruta}{35}{subsection.5.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.6.1}Dónde está}{35}{subsubsection.5.6.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {35}routes/api.php}{35}{lstlisting.35}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.6.2}Cómo funciona}{35}{subsubsection.5.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.6.3}Combinación con otras defensas}{35}{subsubsection.5.6.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {36}Demostración: el sexto intento es bloqueado}{35}{lstlisting.36}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.7}7. Registro de auditoría con trazabilidad}{35}{subsection.5.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.7.1}Qué eventos quedan registrados}{35}{subsubsection.5.7.1}\protected@file@percent }
+\gdef \LT@xiii {\LT@entry 
+    {1}{140.0374pt}\LT@entry 
+    {1}{131.50148pt}\LT@entry 
+    {1}{191.25244pt}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.7.2}Cómo consultar la bitácora}{36}{subsubsection.5.7.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {37}Ejemplo de registros devueltos}{36}{lstlisting.37}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.7.3}Sobre la inmutabilidad y la confidencialidad}{36}{subsubsection.5.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.8}8. Manejo seguro de CORS}{37}{subsection.5.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.8.1}Qué es CORS}{37}{subsubsection.5.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.8.2}Configuración}{37}{subsubsection.5.8.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {38}config/cors.php (configuración restrictiva recomendada)}{37}{lstlisting.38}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.9}9. Principio de Mínimo Privilegio}{37}{subsection.5.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.9.1}Cómo se aplica en el proyecto}{38}{subsubsection.5.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.9.2}Comparación de capacidades por rol}{38}{subsubsection.5.9.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.10}10. Manejo de errores sin fuga de información}{38}{subsection.5.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.10.1}Por qué importa}{38}{subsubsection.5.10.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.10.2}Configuración requerida en el archivo .env de producción}{39}{subsubsection.5.10.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {39}.env de producción (no versionado)}{39}{lstlisting.39}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.10.3}Comportamiento esperado}{39}{subsubsection.5.10.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {40}Respuesta de error en producción}{39}{lstlisting.40}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Frontend Web y Experiencia de Usuario}{39}{section.6}\protected@file@percent }
+\newlabel{sec:frontend}{{6}{39}{Frontend Web y Experiencia de Usuario}{section.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Diseño y Estética (Glassmorphism)}{39}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.1}Implementación visual}{40}{subsubsection.6.1.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {41}Estilo base para los paneles translúcidos}{40}{lstlisting.41}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Estructura Lógica del Cliente}{40}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Consumo Seguro de la API REST}{40}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.3.1}Gestión del Token en el cliente}{40}{subsubsection.6.3.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {42}Inicialización del token JWT}{40}{lstlisting.42}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {43}Almacenamiento local del token}{41}{lstlisting.43}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {44}Envío del token en la lectura de usuarios}{41}{lstlisting.44}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.3.2}Prevención de XSS en la construcción del DOM}{41}{subsubsection.6.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Manejo de Errores y Respuesta visual}{41}{subsection.6.4}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {45}Función para mostrar mensajes de estado}{41}{lstlisting.45}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.5}Pruebas de la API vía CLI}{42}{subsection.6.5}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {46}1. Autenticarse e inferir token}{42}{lstlisting.46}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {47}2. Consultar el propio perfil protegido}{42}{lstlisting.47}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Arquitectura SaaS Multi-Tenant y App Móvil Kotlin}{42}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}1. Objetivo General de la Plataforma}{42}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}2. Jerarquía de Roles y Matriz de Control de Acceso}{42}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}3. Modelo de Datos y Diagrama de Tablas MySQL}{43}{subsection.7.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {48}Estructura principal de tablas en MySQL}{43}{lstlisting.48}\protected@file@percent }
+\gdef \LT@xiv {\LT@entry 
+    {1}{111.58464pt}\LT@entry 
+    {1}{140.0374pt}\LT@entry 
+    {1}{225.39566pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}4. Comparativa de Tecnologías Utilizadas}{44}{subsection.7.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.5}5. Flujo de Integración API con App Móvil Kotlin}{45}{subsection.7.5}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {49}Peticion HTTP enviada por la App Android Kotlin al escanear el QR}{45}{lstlisting.49}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {50}Respuesta JSON recibida por la App Kotlin}{45}{lstlisting.50}\protected@file@percent }
+\gdef \@abspage@last{45}

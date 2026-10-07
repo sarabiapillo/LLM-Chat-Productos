@@ -2,9 +2,25 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class AuditLog extends Model
 {
-    protected $fillable = ['user_id', 'action', 'ip_address', 'details'];
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'action',
+        'ip_address',
+        'details',
+    ];
+
+    /**
+     * Get the user that created the audit log entry.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

@@ -1,0 +1,115 @@
+\section{Arquitectura SaaS Multi-Tenant y App Móvil Kotlin}
+
+\subsection{1. Objetivo General de la Plataforma}
+Desarrollar y operar una plataforma SaaS (Software as a Service) multi-empresa que permita a diversos negocios y empresas gestionar, personalizar y publicar digitalmente su catálogo de productos y precios. Cada empresa cuenta con un código QR único que los clientes finales pueden escanear desde sus dispositivos móviles o mediante la aplicación nativa Android escrita en Kotlin.
+
+\subsection{2. Jerarquía de Roles y Matriz de Control de Acceso}
+La plataforma implementa un control de acceso basado en roles (RBAC) con aislamiento lógico estricto:
+
+\begin{center}
+\begin{tabular}{lp{5.5cm}p{6cm}}
+\toprule
+\textbf{Rol} & \textbf{Nivel de Jerarquía} & \textbf{Permisos y Alcance} \\
+\midrule
+\texttt{admin} & Administrador General SaaS & Acceso total a todas las empresas, gestión de usuarios globales, planes de suscripción y bitácora general de auditoría. \\
+\texttt{empresa} & Panel Empresarial Multi-Tenant & Gestión exclusiva de los productos, categorías, precios e imagen corporativa de su propia empresa (\texttt{company\_id}). Aislamiento de datos estricto. \\
+\texttt{cliente} & Usuario Final / Cliente Mobile & Consulta del catálogo público vía escaneo de código QR o consumo de APIs REST desde la aplicación móvil nativa Android en Kotlin. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{nota}[Principio de Aislamiento Multi-Tenant]
+Ninguna empresa puede consultar, modificar o eliminar los productos o categorías pertenecientes a otra empresa. El backend valida en cada petición que el parámetro \texttt{company\_id} corresponda al tenant del usuario autenticado.
+\end{nota}
+
+\subsection{3. Modelo de Datos y Diagrama de Tablas MySQL}
+El esquema relacional en MySQL está estructurado para soportar multi-tenancy eficiente y auditoría continua:
+
+\begin{lstlisting}[language=SQL, caption={Estructura principal de tablas en MySQL}]
+-- Tabla de Empresas (Tenants)
+CREATE TABLE companies (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(50) NULL,
+    plan ENUM('Basico', 'Plus', 'Premium') DEFAULT 'Basico',
+    status ENUM('Activo', 'Inactivo') DEFAULT 'Activo',
+    created_at TIMESTAMP, updated_at TIMESTAMP
+);
+
+-- Tabla de Usuarios con vinculo a Empresa
+CREATE TABLE users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'empresa', 'cliente') DEFAULT 'cliente',
+    company_id BIGINT NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
+);
+
+-- Tabla de Categorias por Empresa
+CREATE TABLE categories (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+-- Tabla de Productos y Precios
+CREATE TABLE products (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT NOT NULL,
+    category_id BIGINT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+);
+\end{lstlisting}
+
+\subsection{4. Comparativa de Tecnologías Utilizadas}
+\begin{longtable}{p{3.5cm}p{4.5cm}p{7.5cm}}
+\toprule
+\textbf{Tecnología} & \textbf{Componente} & \textbf{Propósito y Justificación Técnica} \\
+\midrule
+\endhead
+\textbf{Laravel 11} & Backend Framework & Proporciona la arquitectura del servidor, enrutamiento web, controladores API REST y la capa de autenticación con Laravel Passport/Sanctum. \\
+\textbf{MySQL 8.0} & Motor de Base de Datos & Almacena relacionalmente las empresas, productos, categorías, usuarios y registros inmutables de auditoría. \\
+\textbf{Docker \& n8n} & Orquestación e IA & Servidor en contenedores que ejecuta el motor de automatización n8n para aplicar filtros inteligentes con IA sobre los productos. \\
+\textbf{Kotlin (Android)} & Aplicación Móvil Nativa & Consume los endpoints JSON del catálogo y permite a los clientes escanear códigos QR con la cámara del celular. \\
+\textbf{Laravel Blade} & Frontend Panel Web & Renderiza el panel de control administrativo responsivo con Tailwind CSS y contadores de sesión en tiempo real. \\
+\bottomrule
+\end{longtable}
+
+\subsection{5. Flujo de Integración API con App Móvil Kotlin}
+La comunicación entre la aplicación móvil Android y el servidor Laravel se realiza mediante peticiones HTTPS/HTTP con respuestas en formato JSON estructurado:
+
+\begin{lstlisting}[language=bash, caption={Peticion HTTP enviada por la App Android Kotlin al escanear el QR}]
+GET /api/v1/catalogo/tech-corp HTTP/1.1
+Host: 127.0.0.1:8000
+Accept: application/json
+\end{lstlisting}
+
+\begin{lstlisting}[language={}, caption={Respuesta JSON recibida por la App Kotlin}]
+{
+  "status": "success",
+  "empresa": {
+    "nombre": "Tech Corp Inc.",
+    "slug": "tech-corp",
+    "qr_url": "http://127.0.0.1:8000/q/tech-corp"
+  },
+  "categorias": [
+    {
+      "name": "Software & Licencias",
+      "products": [
+        { "id": 1, "name": "Licencia Anual LLM Chat Pro", "price": "4999.00" }
+      ]
+    }
+  ]
+}
+\end{lstlisting}
